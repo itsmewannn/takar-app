@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Check, Loader2 } from "lucide-react";
+import { TakaMascot } from "@/components/TakaMascot";
 
 const STEPS = [
   "Membaca skala sendok & piring...",
@@ -27,13 +28,16 @@ export function AnalyzingStepper({ previewUrl }: AnalyzingStepperProps) {
 
   return (
     <div className="flex min-h-dvh flex-col justify-between bg-canvas p-5">
-      <div className="pt-2">
-        <span className="inline-flex rounded-full bg-emeraldBrand-soft px-3 py-1 text-[11px] font-semibold text-emeraldBrand">
-          Kalibrasi TKPI
-        </span>
-        <h1 className="mt-2 text-[22px] font-bold tracking-[-0.02em] text-ink">
-          Memproses Piringmu
-        </h1>
+      <div className="flex items-center justify-between pt-2">
+        <div>
+          <span className="inline-flex rounded-full bg-emeraldBrand-soft px-3 py-1 text-[11px] font-semibold text-emeraldBrand">
+            Kalibrasi TKPI
+          </span>
+          <h1 className="mt-2 text-[22px] font-bold tracking-[-0.02em] text-ink">
+            Memproses Piringmu
+          </h1>
+        </div>
+        <TakaMascot mood="thinking" size={64} />
       </div>
 
       <div className="my-auto space-y-4 py-6">

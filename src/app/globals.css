@@ -55,3 +55,169 @@
   -ms-overflow-style: none;
   scrollbar-width: none;
 }
+
+/* ============================================================================
+   TAKA MASCOT & MOTION KEYFRAMES (GPU-composited untuk Safari iOS & Android)
+   ============================================================================ */
+
+@keyframes taka-float {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0);
+  }
+  50% {
+    transform: translate3d(0, -6px, 0);
+  }
+}
+
+@keyframes taka-shadow-pulse {
+  0%,
+  100% {
+    transform: scale3d(1, 1, 1);
+    opacity: 0.18;
+  }
+  50% {
+    transform: scale3d(0.86, 0.86, 1);
+    opacity: 0.1;
+  }
+}
+
+@keyframes taka-leaf-sway {
+  0%,
+  100% {
+    transform: rotate(0deg);
+  }
+  50% {
+    transform: rotate(5deg);
+  }
+}
+
+@keyframes taka-blink {
+  0%,
+  44%,
+  48%,
+  96%,
+  100% {
+    transform: scaleY(1);
+  }
+  46%,
+  98% {
+    transform: scaleY(0.12);
+  }
+}
+
+@keyframes taka-angry-shake {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0) rotate(0deg);
+  }
+  20% {
+    transform: translate3d(-1.5px, -1px, 0) rotate(-1deg);
+  }
+  40% {
+    transform: translate3d(1.5px, 0, 0) rotate(1deg);
+  }
+  60% {
+    transform: translate3d(-1px, -2px, 0) rotate(-0.8deg);
+  }
+  80% {
+    transform: translate3d(1px, -1px, 0) rotate(0.8deg);
+  }
+}
+
+@keyframes taka-excited-bounce {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0) scale3d(1, 1, 1);
+  }
+  35% {
+    transform: translate3d(0, -9px, 0) scale3d(1.03, 0.98, 1);
+  }
+  70% {
+    transform: translate3d(0, -2px, 0) scale3d(0.99, 1.02, 1);
+  }
+}
+
+@keyframes taka-scan-x {
+  0%,
+  100% {
+    transform: translate3d(-11px, 0, 0);
+  }
+  50% {
+    transform: translate3d(11px, 0, 0);
+  }
+}
+
+@keyframes taka-pop-in {
+  0% {
+    opacity: 0;
+    transform: scale3d(0.65, 0.65, 1) translate3d(0, 18px, 0);
+  }
+  65% {
+    opacity: 1;
+    transform: scale3d(1.06, 1.06, 1) translate3d(0, -4px, 0);
+  }
+  100% {
+    opacity: 1;
+    transform: scale3d(1, 1, 1) translate3d(0, 0, 0);
+  }
+}
+
+@keyframes taka-slide-up {
+  0% {
+    opacity: 0;
+    transform: translate3d(0, 12px, 0);
+  }
+  100% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+.animate-taka-float {
+  animation: taka-float 3.2s ease-in-out infinite;
+  will-change: transform;
+}
+
+.animate-taka-shadow {
+  animation: taka-shadow-pulse 3.2s ease-in-out infinite;
+  transform-origin: center;
+  will-change: transform, opacity;
+}
+
+.animate-taka-leaf {
+  animation: taka-leaf-sway 3.2s ease-in-out infinite;
+  transform-origin: 100px 44px;
+  will-change: transform;
+}
+
+.animate-taka-blink {
+  animation: taka-blink 4.2s ease-in-out infinite;
+  transform-origin: 100px 102px;
+  will-change: transform;
+}
+
+.animate-taka-angry {
+  animation: taka-angry-shake 0.55s ease-in-out infinite;
+  will-change: transform;
+}
+
+.animate-taka-excited {
+  animation: taka-excited-bounce 1.25s ease-in-out infinite;
+  will-change: transform;
+}
+
+.animate-taka-scan {
+  animation: taka-scan-x 1.35s ease-in-out infinite;
+  will-change: transform;
+}
+
+.animate-taka-pop {
+  animation: taka-pop-in 0.65s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  will-change: transform, opacity;
+}
+
+.animate-taka-slide-up {
+  animation: taka-slide-up 0.45s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  will-change: transform, opacity;
+}

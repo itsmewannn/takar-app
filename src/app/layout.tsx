@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import "@fontsource-variable/plus-jakarta-sans";
 import "@fontsource-variable/jetbrains-mono";
+import { SplashScreen } from "@/components/SplashScreen";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -24,6 +25,7 @@ export default function RootLayout({
   return (
     <html lang="id">
       <body className="min-h-dvh bg-[#EBEEF4] font-sans text-ink antialiased">
+        <SplashScreen />
         <div className="mx-auto flex min-h-dvh w-full max-w-[460px] flex-col overflow-x-hidden bg-canvas shadow-[0_0_48px_rgb(0,0,0,0.05)]">
           {children}
         </div>

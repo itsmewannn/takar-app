@@ -7,6 +7,7 @@ import { BottomActionDock } from "@/components/dashboard/BottomActionDock";
 import { MealTimelineList } from "@/components/dashboard/MealTimelineList";
 import { ProteinGapStrip } from "@/components/dashboard/ProteinGapStrip";
 import { ProteinHeroCard } from "@/components/dashboard/ProteinHeroCard";
+import { TakaCoachBot } from "@/components/TakaCoachBot";
 import { ProgressBar } from "@/components/ui/ProgressBar";
 import { roundToOneDecimal } from "@/lib/nutrition-engine";
 import type { MealLogWithItems, UserTargetRow } from "@/types/database.types";
@@ -275,7 +276,7 @@ export default function DashboardPage() {
       </div>
 
       {/* Riwayat Makan — White Sheet Style */}
-      <section className="mt-auto flex-1 rounded-t-3xl bg-surface px-5 pb-10 pt-3.5 shadow-sheet">
+      <section className="mt-auto flex-1 rounded-t-3xl bg-surface px-5 pb-24 pt-3.5 shadow-sheet">
         <div
           aria-hidden="true"
           className="mx-auto mb-3.5 h-1.5 w-11 rounded-full bg-slate-200/90"
@@ -299,6 +300,16 @@ export default function DashboardPage() {
 
         <MealTimelineList meals={meals} onDeleteMeal={handleDeleteMeal} />
       </section>
+
+      {/* Floating AI Mascot Coach & Welcome Message */}
+      <TakaCoachBot
+        consumedKcal={totals.kcal}
+        targetKcal={target.daily_kcal}
+        consumedProteinG={totals.protein_g}
+        targetProteinG={target.daily_protein_g}
+        hiddenKcal={totals.hidden_kcal}
+        mealCount={meals.length}
+      />
     </div>
   );
 }
