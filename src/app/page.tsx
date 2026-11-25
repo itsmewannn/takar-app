@@ -45,12 +45,20 @@ export default function DashboardPage() {
   const [target, setTarget] = React.useState<UserTargetRow>(DEFAULT_TARGET);
   const [meals, setMeals] = React.useState<MealLogWithItems[]>([]);
   const [todayLabel, setTodayLabel] = React.useState<string>("");
+  const [userName, setUserName] = React.useState<string | null>(null);
 
   React.useEffect(() => {
     const now = new Date();
     setTodayLabel(formatIndonesianDate(now));
 
     try {
+      const cachedProfile = localStorage.getItem("takar_user_profile_v1");
+      if (cachedProfile) {
+        const parsedProfile = JSON.parse(cachedProfile) as { name?: string };
+        if (parsedProfile.name) {
+          setUserName(parsedProfile.name);
+        }
+      }
       const cachedTarget = localStorage.getItem(LOCAL_TARGET_CACHE_KEY);
       if (cachedTarget) {
         setTarget(JSON.parse(cachedTarget) as UserTargetRow);
@@ -167,7 +175,7 @@ export default function DashboardPage() {
       <header className="flex items-center justify-between px-5 pb-3 pt-5">
         <div>
           <h1 className="text-[20px] font-bold tracking-[-0.02em] text-ink">
-            Halo, Siap Takar
+            {userName ? `Halo, ${userName}` : "Halo, Siap Takar"}
           </h1>
           <p className="mt-0.5 text-[13px] font-medium text-ink-secondary">
             {todayLabel || "Hari Ini"}

@@ -5,16 +5,47 @@ import { SplashScreen } from "@/components/SplashScreen";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "TAKAR — Kalibrasi Makro & Protein Makanan Lokal",
+  title: {
+    default: "TAKAR — Asisten Takaran Nutrisi Harian",
+    template: "%s | TAKAR",
+  },
+  applicationName: "TAKAR",
   description:
-    "Pelacak protein dan kalori deterministik berbasis TKPI untuk makanan rumahan dan warteg Indonesia.",
+    "Asisten takaran protein dan kalori deterministik berbasis TKPI untuk makanan rumahan dan warteg Indonesia.",
+  manifest: "/manifest.json",
+  appleWebApp: {
+    capable: true,
+    title: "TAKAR",
+    statusBarStyle: "default",
+  },
+  formatDetection: {
+    telephone: false,
+  },
+  openGraph: {
+    type: "website",
+    siteName: "TAKAR",
+    title: "TAKAR — Asisten Takaran Nutrisi Harian",
+    description:
+      "Kalibrasi protein dan kalori makanan lokal Indonesia secara presisi berbasis tabel TKPI.",
+    locale: "id_ID",
+  },
+  twitter: {
+    card: "summary",
+    title: "TAKAR — Asisten Takaran Nutrisi Harian",
+    description:
+      "Kalibrasi protein dan kalori makanan lokal Indonesia secara presisi berbasis tabel TKPI.",
+  },
+  icons: {
+    icon: "/icon.svg",
+    apple: "/icon.svg",
+  },
 };
 
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   maximumScale: 1,
-  themeColor: "#F6F8FB",
+  themeColor: "#1B6B4A",
 };
 
 export default function RootLayout({

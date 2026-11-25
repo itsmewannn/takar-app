@@ -2,7 +2,8 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { ArrowLeft, Flame } from "lucide-react";
+import { ArrowLeft, Flame, LogIn, LogOut, UserCheck } from "lucide-react";
+import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import { TargetForm } from "@/components/settings/TargetForm";
 import { TkpiExplorerList } from "@/components/settings/TkpiExplorerList";
 import { DEFAULT_TKPI_FOODS } from "@/lib/mock-fallback";
@@ -23,9 +24,19 @@ export default function SettingsPage() {
   const [targetValues, setTargetValues] =
     React.useState<UserTargetPayload>(DEFAULT_VALUES);
   const [foods, setFoods] = React.useState<TkpiFood[]>(DEFAULT_TKPI_FOODS);
+  const [userProfile, setUserProfile] = React.useState<{
+    name: string;
+    email: string;
+  } | null>(null);
 
   React.useEffect(() => {
     try {
+      const profileRaw = localStorage.getItem("takar_user_profile_v1");
+      if (profileRaw) {
+        setUserProfile(
+          JSON.parse(profileRaw) as { name: string; email: string }
+        );
+      }
       const localRaw = localStorage.getItem(LOCAL_TARGET_CACHE_KEY);
       if (localRaw) {
         const parsed = JSON.parse(localRaw) as UserTargetPayload;
@@ -117,6 +128,51 @@ export default function SettingsPage() {
       </header>
 
       <main className="space-y-5 px-5 pt-2">
+        {/* Kartu Akun TAKAR */}
+        <section className="flex items-center justify-between gap-3 rounded-3xl bg-surface p-4 shadow-soft">
+          <div className="flex min-w-0 items-center gap-3">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-emeraldBrand-soft text-emeraldBrand">
+              <UserCheck className="h-5 w-5" strokeWidth={1.8} />
+            </div>
+            <div className="min-w-0">
+              <p className="truncate text-[14px] font-bold text-ink">
+                {userProfile ? userProfile.name : "Akun TAKAR"}
+              </p>
+              <p className="truncate text-[12px] text-ink-secondary">
+                {userProfile
+                  ? userProfile.email
+                  : "Masuk untuk sinkronisasi profil"}
+              </p>
+            </div>
+          </div>
+
+          {userProfile ? (
+            <button
+              type="button"
+              onClick={() => {
+                localStorage.removeItem("takar_user_profile_v1");
+                setUserProfile(null);
+                const supabase = getSupabaseBrowserClient();
+                if (supabase) {
+                  void supabase.auth.signOut();
+                }
+              }}
+              className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-xl bg-subtle px-3 text-[12px] font-semibold text-ink-secondary hover:text-terracotta"
+            >
+              <LogOut className="h-3.5 w-3.5" strokeWidth={1.8} />
+              <span>Keluar</span>
+            </button>
+          ) : (
+            <Link
+              href="/login"
+              className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-xl bg-emeraldBrand px-3.5 text-[12px] font-semibold text-white transition-colors hover:bg-emeraldBrand-hover"
+            >
+              <LogIn className="h-3.5 w-3.5" strokeWidth={1.8} />
+              <span>Masuk</span>
+            </Link>
+          )}
+        </section>
+
         {/* Form Target Makro */}
         <section className="space-y-2.5">
           <TargetForm
