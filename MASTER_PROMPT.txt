@@ -1,0 +1,18 @@
+Baca @PRD.md, @DESIGN_SYSTEM.md, dan @STRUCTURE.md secara menyeluruh sebelum menulis satu baris kode pun.
+
+Kita akan membangun MVP aplikasi TAKAR dari nol di workspace ini. Ikuti struktur folder di @STRUCTURE.md dan kerjakan secara bertahap dengan standar production-ready:
+
+FASE 1 (Arsitektur & Setup):
+1. Inisialisasi proyek Next.js (App Router, TypeScript strict, Tailwind CSS, Lucide React, Zod, Vitest).
+2. Buat file `AGENTS.md` di root proyek yang merangkum arsitektur, aturan mutlak "No AI Math", dan token desain agar konsisten di sesi berikutnya.
+3. Buat file migrasi SQL Supabase (`supabase/schema.sql` dan `supabase/seed_tkpi.sql`) lengkap dengan minimal 40 makanan warteg/lokal Indonesia yang akurat mengacu pada data TKPI, beserta tabel `cooking_modifiers`.
+
+FASE 2 (Core Engine & Unit Test):
+4. Bangun deterministic calculation engine (`src/lib/nutrition-engine.ts`) yang menghitung makro dasar + hidden calories dari `cooking_modifiers` + konversi satuan lokal (centong, potong, sdm, butir).
+5. Tulis unit test lengkap dengan Vitest untuk `nutrition-engine.ts` dan jalankan sampai 100% hijau.
+
+FASE 3 (API & UI):
+6. Bangun endpoint `/api/analyze-meal` menggunakan Gemini Vision API dengan strict JSON schema (Zod validated) dan fallback mock mode jika `GEMINI_API_KEY` belum diset agar UI tetap bisa dites langsung.
+7. Bangun keempat halaman UI sesuai @DESIGN_SYSTEM.md dengan mematuhi seluruh Anti-AI Slop Rules, tipografi tabular-nums, dan fitur 1-tap portion correction yang mengupdate makro secara instan.
+
+Kriteria selesai: `npm run test`, `npx tsc --noEmit`, dan `npm run build` semuanya wajib lulus tanpa error. Mulai dari Fase 1 sekarang dan tampilkan rencanamu secara singkat sebelum eksekusi.

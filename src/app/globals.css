@@ -1,0 +1,57 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --color-canvas: #F6F8FB;
+  --color-surface: #FFFFFF;
+  --color-subtle: #EEF2F6;
+  --color-hairline: #E8EDF3;
+  --color-ink: #14171A;
+  --color-ink-secondary: #64748B;
+  --color-emerald: #1B6B4A;
+  --color-charcoal: #1C1E21;
+}
+
+@layer base {
+  html {
+    background-color: #EBEEF4;
+    color: var(--color-ink);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  body {
+    font-family: "Plus Jakarta Sans Variable", "Plus Jakarta Sans", system-ui,
+      -apple-system, sans-serif;
+    color: var(--color-ink);
+    background-color: #EBEEF4;
+  }
+
+  /* Hilangkan spinner panah bawaan browser pada semua input angka */
+  input[type="number"]::-webkit-outer-spin-button,
+  input[type="number"]::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+
+  input[type="number"] {
+    -moz-appearance: textfield;
+    appearance: textfield;
+  }
+}
+
+.font-mono,
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1, "zero" 1;
+}
+
+/* Sembunyikan scrollbar horizontal pada deretan chip */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
