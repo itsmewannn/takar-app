@@ -21,12 +21,7 @@ ON CONFLICT (method_key) DO UPDATE SET
   extra_carbs_per_100g = EXCLUDED.extra_carbs_per_100g,
   extra_kcal_per_100g = EXCLUDED.extra_kcal_per_100g;
 
--- 2. Seed Default User Target (MVP)
-INSERT INTO user_targets (id, daily_kcal, daily_protein_g, daily_carbs_g, daily_fat_g)
-VALUES ('default-user', 2200, 130, 250, 65)
-ON CONFLICT (id) DO NOTHING;
-
--- 3. Seed 48 Makanan Lokal / Warteg Indonesia (Mengacu TKPI per 100g bagian dapat dimakan)
+-- 2. Seed 48 Makanan Lokal / Warteg Indonesia (Mengacu TKPI per 100g bagian dapat dimakan)
 INSERT INTO tkpi_foods (
   id, name, aliases, category,
   kcal_per_100g, protein_per_100g, carbs_per_100g, fat_per_100g,

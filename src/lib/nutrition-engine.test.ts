@@ -11,6 +11,11 @@ import {
 } from "./nutrition-engine";
 import { matchTkpiFood } from "./tkpi-matcher";
 import { buildProteinGapAdvice } from "./protein-advisor";
+import {
+  calculateBodyMetricsAndTargets,
+  evaluateStreakProgress,
+  getFlameEvolutionTier,
+} from "./body-profile-engine";
 import { getMockVisionOutput, DEFAULT_TKPI_FOODS } from "./mock-fallback";
 import { VisionOutputSchema } from "@/schemas/vision-output.schema";
 import type { CookingMethod, TkpiFood } from "@/types/nutrition.types";
@@ -235,5 +240,60 @@ describe("nutrition-engine — deterministic TKPI + cooking modifiers", () => {
     });
     expect(met.is_met).toBe(true);
     expect(met.deficit_g).toBe(0);
+  });
+
+  it("calculates V2 Mifflin-St Jeor targets and Consistency Streak evolution tiers", () => {
+    const cutMale = calculateBodyMetricsAndTargets({
+      gender: "pria",
+      age: 25,
+      weightKg: 70,
+      heightCm: 172,
+      activityLevel: "moderate",
+      goalProgram: "cutting",
+    });
+    const bulkMale = calculateBodyMetricsAndTargets({
+      gender: "pria",
+      age: 25,
+      weightKg: 70,
+      heightCm: 172,
+      activityLevel: "moderate",
+      goalProgram: "bulking",
+    });
+    expect(cutMale.targetKcal).toBe(cutMale.tdeeKcal - 350);
+    expect(bulkMale.targetKcal).toBe(bulkMale.tdeeKcal + 300);
+    expect(cutMale.targetProteinG).toBeGreaterThanOrEqual(140);
+
+    // 4-tier Flame Evolution
+    expect(getFlameEvolutionTier(3).key).toBe("orange");
+    expect(getFlameEvolutionTier(14).key).toBe("blue");
+    expect(getFlameEvolutionTier(30).key).toBe("purple");
+    expect(getFlameEvolutionTier(95).key).toBe("gold");
+
+    // Streak increments +1 on consecutive day within <= 135% calorie cap
+    const day2 = evaluateStreakProgress({
+      currentStreak: 29,
+      longestStreak: 29,
+      lastLoggedDate: "2026-11-25",
+      streakHistory: ["2026-11-25"],
+      todayYmd: "2026-11-26",
+      mealsCountToday: 1,
+      totalKcalToday: 1850,
+      targetKcal: 2000,
+    });
+    expect(day2.current_streak).toBe(30);
+    expect(day2.longest_streak).toBe(30);
+
+    // Extreme calorie > 135% blocks streak increment
+    const extreme = evaluateStreakProgress({
+      currentStreak: 5,
+      longestStreak: 5,
+      lastLoggedDate: "2026-11-25",
+      streakHistory: ["2026-11-25"],
+      todayYmd: "2026-11-26",
+      mealsCountToday: 3,
+      totalKcalToday: 3100,
+      targetKcal: 2000,
+    });
+    expect(extreme.current_streak).toBe(5);
   });
 });

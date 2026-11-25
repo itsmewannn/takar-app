@@ -4,13 +4,22 @@ import {
   getFallbackUserTarget,
   updateFallbackUserTarget,
 } from "@/lib/mock-fallback";
-import { getSupabaseServerClient } from "@/lib/supabase/server";
+import { getAuthenticatedRequestContext } from "@/lib/supabase/server";
 
-export async function GET() {
-  const supabase = getSupabaseServerClient();
+export async function GET(request: Request) {
+  const auth = await getAuthenticatedRequestContext(request);
+  if (!auth) {
+    return NextResponse.json(
+      { error: "Sesi login diperlukan." },
+      { status: 401 }
+    );
+  }
+
+  const { supabase, userId } = auth;
+
   if (!supabase) {
     return NextResponse.json({
-      target: getFallbackUserTarget(),
+      target: getFallbackUserTarget(userId),
       source: "local_fallback",
     });
   }
@@ -18,12 +27,12 @@ export async function GET() {
   const { data, error } = await supabase
     .from("user_targets")
     .select("*")
-    .eq("id", "default-user")
+    .eq("id", userId)
     .maybeSingle();
 
   if (error || !data) {
     return NextResponse.json({
-      target: getFallbackUserTarget(),
+      target: getFallbackUserTarget(userId),
       source: "local_fallback",
     });
   }
@@ -31,6 +40,7 @@ export async function GET() {
   return NextResponse.json({
     target: {
       id: String(data.id),
+      user_id: userId,
       daily_kcal: Number(data.daily_kcal),
       daily_protein_g: Number(data.daily_protein_g),
       daily_carbs_g: Number(data.daily_carbs_g),
@@ -41,6 +51,16 @@ export async function GET() {
 }
 
 export async function PUT(request: Request) {
+  const auth = await getAuthenticatedRequestContext(request);
+  if (!auth) {
+    return NextResponse.json(
+      { error: "Sesi login diperlukan." },
+      { status: 401 }
+    );
+  }
+
+  const { supabase, userId } = auth;
+
   try {
     const body: unknown = await request.json();
     const parsed = UserTargetPayloadSchema.safeParse(body);
@@ -55,20 +75,21 @@ export async function PUT(request: Request) {
       );
     }
 
-    const supabase = getSupabaseServerClient();
     if (!supabase) {
-      const updated = updateFallbackUserTarget(parsed.data);
+      const updated = updateFallbackUserTarget(userId, parsed.data);
       return NextResponse.json({
         target: updated,
         source: "local_fallback",
       });
     }
 
-    const { data, error } = await supabase
+    // Coba simpan lengkap dengan kolom user_id; jika skema lama belum memiliki kolom user_id, simpan dengan id = userId
+    let { data, error } = await supabase
       .from("user_targets")
       .upsert(
         {
-          id: "default-user",
+          id: userId,
+          user_id: userId,
           ...parsed.data,
           updated_at: new Date().toISOString(),
         },
@@ -77,8 +98,25 @@ export async function PUT(request: Request) {
       .select("*")
       .single();
 
+    if (error) {
+      const retry = await supabase
+        .from("user_targets")
+        .upsert(
+          {
+            id: userId,
+            ...parsed.data,
+            updated_at: new Date().toISOString(),
+          },
+          { onConflict: "id" }
+        )
+        .select("*")
+        .single();
+      data = retry.data;
+      error = retry.error;
+    }
+
     if (error || !data) {
-      const fallbackUpdated = updateFallbackUserTarget(parsed.data);
+      const fallbackUpdated = updateFallbackUserTarget(userId, parsed.data);
       return NextResponse.json({
         target: fallbackUpdated,
         source: "local_fallback",
@@ -88,6 +126,7 @@ export async function PUT(request: Request) {
     return NextResponse.json({
       target: {
         id: String(data.id),
+        user_id: userId,
         daily_kcal: Number(data.daily_kcal),
         daily_protein_g: Number(data.daily_protein_g),
         daily_carbs_g: Number(data.daily_carbs_g),

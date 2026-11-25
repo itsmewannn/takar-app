@@ -11,10 +11,15 @@ import {
 import { Button } from "@/components/ui/Button";
 import { roundToOneDecimal } from "@/lib/nutrition-engine";
 import type { CoachAdviceResponse } from "@/app/api/coach-advice/route";
+import type { GoalProgramType } from "@/types/database.types";
 
 export type GoalMode = "Cutting" | "Bulking" | "Rekomposisi";
 
 export interface TakaCoachBotProps {
+  userId: string;
+  userName?: string;
+  goalProgram?: GoalProgramType;
+  currentStreak?: number;
   consumedKcal: number;
   targetKcal: number;
   consumedProteinG: number;
@@ -25,7 +30,13 @@ export interface TakaCoachBotProps {
 
 const WELCOME_SHOWN_SESSION_KEY = "takar_welcome_bubble_shown_v1";
 
-export function inferGoalMode(targetKcal: number): GoalMode {
+export function inferGoalMode(
+  targetKcal: number,
+  explicitProgram?: GoalProgramType
+): GoalMode {
+  if (explicitProgram === "cutting") return "Cutting";
+  if (explicitProgram === "bulking") return "Bulking";
+  if (explicitProgram === "rekomposisi") return "Rekomposisi";
   if (targetKcal <= 1900) return "Cutting";
   if (targetKcal >= 2450) return "Bulking";
   return "Rekomposisi";
@@ -178,6 +189,10 @@ function evaluateNutritionMood(params: {
 }
 
 export function TakaCoachBot({
+  userId,
+  userName,
+  goalProgram,
+  currentStreak = 0,
   consumedKcal,
   targetKcal,
   consumedProteinG,
@@ -199,7 +214,10 @@ export function TakaCoachBot({
     periodLabel: string;
   }>({ greeting: "Halo", periodLabel: "Hari ini" });
 
-  const goal = React.useMemo(() => inferGoalMode(targetKcal), [targetKcal]);
+  const goal = React.useMemo(
+    () => inferGoalMode(targetKcal, goalProgram),
+    [targetKcal, goalProgram]
+  );
 
   const dismissWelcomeBubble = React.useCallback(() => {
     setWelcomeClosing(true);
@@ -210,19 +228,28 @@ export function TakaCoachBot({
     }, 260);
   }, []);
 
-  // Tampilkan Welcome Bubble tepat setelah SplashScreen selesai
+  // Tampilkan Welcome Bubble tepat setelah Login/Register atau setelah SplashScreen selesai
   React.useEffect(() => {
+    if (!userId) return;
     setGreetingMeta(getTimeGreeting(new Date()));
 
     let autoHideTimer: ReturnType<typeof setTimeout> | undefined;
     let waveTimer: ReturnType<typeof setTimeout> | undefined;
+    const perUserWelcomeKey = `${WELCOME_SHOWN_SESSION_KEY}_${userId}`;
 
     const triggerWelcome = () => {
       try {
-        if (sessionStorage.getItem(WELCOME_SHOWN_SESSION_KEY) === "1") {
+        const forcedAfterLogin =
+          sessionStorage.getItem("takar_trigger_welcome_v1") === "1";
+        const alreadyShownForUser =
+          sessionStorage.getItem(perUserWelcomeKey) === "1";
+
+        if (!forcedAfterLogin && alreadyShownForUser) {
           return;
         }
-        sessionStorage.setItem(WELCOME_SHOWN_SESSION_KEY, "1");
+
+        sessionStorage.removeItem("takar_trigger_welcome_v1");
+        sessionStorage.setItem(perUserWelcomeKey, "1");
       } catch {
         // Lanjutkan meskipun sessionStorage terbatas
       }
@@ -241,13 +268,15 @@ export function TakaCoachBot({
 
     let splashAlreadyDone = false;
     try {
-      splashAlreadyDone = sessionStorage.getItem(SPLASH_SESSION_KEY) === "1";
+      splashAlreadyDone =
+        sessionStorage.getItem(SPLASH_SESSION_KEY) === "1" ||
+        sessionStorage.getItem("takar_trigger_welcome_v1") === "1";
     } catch {
       splashAlreadyDone = true;
     }
 
     if (splashAlreadyDone) {
-      const tImmediate = setTimeout(triggerWelcome, 220);
+      const tImmediate = setTimeout(triggerWelcome, 200);
       return () => {
         clearTimeout(tImmediate);
         if (autoHideTimer) clearTimeout(autoHideTimer);
@@ -264,7 +293,7 @@ export function TakaCoachBot({
       if (autoHideTimer) clearTimeout(autoHideTimer);
       if (waveTimer) clearTimeout(waveTimer);
     };
-  }, [dismissWelcomeBubble]);
+  }, [userId, dismissWelcomeBubble]);
 
   const moodInfo = React.useMemo(
     () =>
@@ -291,16 +320,18 @@ export function TakaCoachBot({
   );
 
   const welcomeText = React.useMemo(() => {
+    const nameSuffix = userName ? `, ${userName}` : "";
     if (mealCount === 0) {
-      return `${greetingMeta.greeting}! Siap jaga target ${goal} hari ini? Yuk scan makanan pertamamu!`;
+      return `${greetingMeta.greeting}${nameSuffix}! Siap jaga target ${goal} hari ini? Yuk scan makanan pertamamu!`;
     }
     const pct = Math.min(
       999,
       Math.round((consumedProteinG / Math.max(1, targetProteinG)) * 100)
     );
-    return `${greetingMeta.greeting}! Capaian protein ${goal} kamu sudah ${pct}%. Ketuk TAKA kalau butuh saran lauk!`;
+    return `${greetingMeta.greeting}${nameSuffix}! Capaian protein ${goal} kamu sudah ${pct}%. Ketuk TAKA kalau butuh saran lauk!`;
   }, [
     greetingMeta.greeting,
+    userName,
     goal,
     mealCount,
     consumedProteinG,
@@ -442,7 +473,8 @@ export function TakaCoachBot({
                       </span>
                     </div>
                     <p className="mt-0.5 text-[12px] font-medium text-ink-secondary">
-                      Mode {goal} • Pantauan Real-Time
+                      Mode {goal}
+                      {currentStreak > 0 ? ` • Streak ${currentStreak} Hari` : " • Pantauan Real-Time"}
                     </p>
                   </div>
                 </div>

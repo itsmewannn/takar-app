@@ -4,16 +4,24 @@ import {
   createFallbackMeal,
   listFallbackMealsForDate,
 } from "@/lib/mock-fallback";
-import { getSupabaseServerClient } from "@/lib/supabase/server";
+import { getAuthenticatedRequestContext } from "@/lib/supabase/server";
 
 export async function GET(request: Request) {
+  const auth = await getAuthenticatedRequestContext(request);
+  if (!auth) {
+    return NextResponse.json(
+      { error: "Sesi login diperlukan. Silakan masuk ke akun TAKAR." },
+      { status: 401 }
+    );
+  }
+
+  const { supabase, userId } = auth;
   const { searchParams } = new URL(request.url);
   const dateParam = searchParams.get("date") ?? undefined;
 
-  const supabase = getSupabaseServerClient();
   if (!supabase) {
     return NextResponse.json({
-      meals: listFallbackMealsForDate(dateParam),
+      meals: listFallbackMealsForDate(userId, dateParam),
       source: "local_fallback",
     });
   }
@@ -21,6 +29,7 @@ export async function GET(request: Request) {
   let query = supabase
     .from("meal_logs")
     .select("*, meal_items(*)")
+    .eq("user_id", userId)
     .order("logged_at", { ascending: false });
 
   if (dateParam && /^\d{4}-\d{2}-\d{2}$/.test(dateParam)) {
@@ -32,7 +41,7 @@ export async function GET(request: Request) {
   const { data, error } = await query;
   if (error || !data) {
     return NextResponse.json({
-      meals: listFallbackMealsForDate(dateParam),
+      meals: listFallbackMealsForDate(userId, dateParam),
       source: "local_fallback",
     });
   }
@@ -44,6 +53,16 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+  const auth = await getAuthenticatedRequestContext(request);
+  if (!auth) {
+    return NextResponse.json(
+      { error: "Sesi login diperlukan. Silakan masuk ke akun TAKAR." },
+      { status: 401 }
+    );
+  }
+
+  const { supabase, userId } = auth;
+
   try {
     const body: unknown = await request.json();
     const parsed = CreateMealPayloadSchema.safeParse(body);
@@ -59,10 +78,9 @@ export async function POST(request: Request) {
     }
 
     const payload = parsed.data;
-    const supabase = getSupabaseServerClient();
 
     if (!supabase) {
-      const created = createFallbackMeal(payload);
+      const created = createFallbackMeal(userId, payload);
       return NextResponse.json(
         { meal: created, source: "local_fallback" },
         { status: 201 }
@@ -72,6 +90,7 @@ export async function POST(request: Request) {
     const { data: mealRow, error: mealError } = await supabase
       .from("meal_logs")
       .insert({
+        user_id: userId,
         meal_type: payload.meal_type,
         image_url: payload.image_url ?? null,
         total_kcal: payload.total_kcal,
@@ -84,7 +103,7 @@ export async function POST(request: Request) {
       .single();
 
     if (mealError || !mealRow) {
-      const fallbackCreated = createFallbackMeal(payload);
+      const fallbackCreated = createFallbackMeal(userId, payload);
       return NextResponse.json(
         { meal: fallbackCreated, source: "local_fallback" },
         { status: 201 }

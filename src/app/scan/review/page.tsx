@@ -5,6 +5,7 @@ import { Suspense } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowLeft, Check, Plus, Ruler } from "lucide-react";
+import { useAuth } from "@/components/AuthProvider";
 import { DetectedFoodRow } from "@/components/review/DetectedFoodRow";
 import { ManualFoodDrawer } from "@/components/review/ManualFoodDrawer";
 import { StickyMacroBar } from "@/components/review/StickyMacroBar";
@@ -18,8 +19,6 @@ import {
 } from "@/hooks/useMealCalculator";
 import type { MealLogWithItems } from "@/types/database.types";
 import type { MealType, ReferenceObjectType } from "@/types/nutrition.types";
-
-const LOCAL_MEALS_CACHE_KEY = "takar_meals_cache_v1";
 
 const MEAL_TYPE_OPTIONS: Array<{ value: MealType; label: string }> = [
   { value: "sarapan", label: "Sarapan" },
@@ -43,6 +42,7 @@ function ReviewMealContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const isManualMode = searchParams.get("mode") === "manual";
+  const { user, getAuthHeaders } = useAuth();
 
   const {
     items,
@@ -110,7 +110,10 @@ function ReviewMealContent() {
 
       const res = await fetch("/api/meals", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          ...getAuthHeaders(),
+        },
         body: JSON.stringify(payload),
       });
 
@@ -121,18 +124,18 @@ function ReviewMealContent() {
       const data = (await res.json()) as { meal: MealLogWithItems };
 
       try {
-        const existingRaw = localStorage.getItem(LOCAL_MEALS_CACHE_KEY);
-        const existingList = existingRaw
-          ? (JSON.parse(existingRaw) as MealLogWithItems[])
-          : [];
-        const updatedList = [
-          data.meal,
-          ...existingList.filter((m) => m.id !== data.meal.id),
-        ];
-        localStorage.setItem(
-          LOCAL_MEALS_CACHE_KEY,
-          JSON.stringify(updatedList)
-        );
+        if (user?.id) {
+          const userMealsKey = `takar_meals_v2_${user.id}`;
+          const existingRaw = localStorage.getItem(userMealsKey);
+          const existingList = existingRaw
+            ? (JSON.parse(existingRaw) as MealLogWithItems[])
+            : [];
+          const updatedList = [
+            data.meal,
+            ...existingList.filter((m) => m.id !== data.meal.id),
+          ];
+          localStorage.setItem(userMealsKey, JSON.stringify(updatedList));
+        }
         sessionStorage.removeItem(REVIEW_SESSION_STORAGE_KEY);
       } catch {
         // Abaikan jika melebihi kuota storage lokal

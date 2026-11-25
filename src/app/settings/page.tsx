@@ -2,16 +2,14 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { ArrowLeft, Flame, LogIn, LogOut, UserCheck } from "lucide-react";
-import { getSupabaseBrowserClient } from "@/lib/supabase/client";
+import { ArrowLeft, ChevronRight, Flame, LogOut, ScanLine, UserCheck } from "lucide-react";
+import { useAuth } from "@/components/AuthProvider";
 import { TargetForm } from "@/components/settings/TargetForm";
 import { TkpiExplorerList } from "@/components/settings/TkpiExplorerList";
 import { DEFAULT_TKPI_FOODS } from "@/lib/mock-fallback";
 import { COOKING_MODIFIERS } from "@/lib/nutrition-engine";
 import type { UserTargetPayload } from "@/schemas/meal-payload.schema";
 import type { TkpiFood } from "@/types/nutrition.types";
-
-const LOCAL_TARGET_CACHE_KEY = "takar_target_cache_v1";
 
 const DEFAULT_VALUES: UserTargetPayload = {
   daily_kcal: 2200,
@@ -21,23 +19,20 @@ const DEFAULT_VALUES: UserTargetPayload = {
 };
 
 export default function SettingsPage() {
+  const { user, getAuthHeaders, signOut } = useAuth();
+
   const [targetValues, setTargetValues] =
     React.useState<UserTargetPayload>(DEFAULT_VALUES);
   const [foods, setFoods] = React.useState<TkpiFood[]>(DEFAULT_TKPI_FOODS);
-  const [userProfile, setUserProfile] = React.useState<{
-    name: string;
-    email: string;
-  } | null>(null);
+
+  const userId = user?.id ?? "";
+  const targetCacheKey = userId ? `takar_target_v2_${userId}` : "";
 
   React.useEffect(() => {
+    if (!userId) return;
+
     try {
-      const profileRaw = localStorage.getItem("takar_user_profile_v1");
-      if (profileRaw) {
-        setUserProfile(
-          JSON.parse(profileRaw) as { name: string; email: string }
-        );
-      }
-      const localRaw = localStorage.getItem(LOCAL_TARGET_CACHE_KEY);
+      const localRaw = localStorage.getItem(targetCacheKey);
       if (localRaw) {
         const parsed = JSON.parse(localRaw) as UserTargetPayload;
         setTargetValues({
@@ -52,9 +47,10 @@ export default function SettingsPage() {
     }
 
     let active = true;
+    const headers = getAuthHeaders();
 
     Promise.all([
-      fetch("/api/targets").then((r) => (r.ok ? r.json() : null)),
+      fetch("/api/targets", { headers }).then((r) => (r.ok ? r.json() : null)),
       fetch("/api/foods").then((r) => (r.ok ? r.json() : null)),
     ])
       .then(
@@ -65,12 +61,17 @@ export default function SettingsPage() {
           if (!active) return;
 
           if (targetRes?.target && targetRes.source === "supabase") {
-            setTargetValues({
+            const synced: UserTargetPayload = {
               daily_kcal: Number(targetRes.target.daily_kcal),
               daily_protein_g: Number(targetRes.target.daily_protein_g),
               daily_carbs_g: Number(targetRes.target.daily_carbs_g),
               daily_fat_g: Number(targetRes.target.daily_fat_g),
-            });
+            };
+            setTargetValues(synced);
+            localStorage.setItem(
+              targetCacheKey,
+              JSON.stringify({ id: userId, user_id: userId, ...synced })
+            );
           }
 
           if (foodsRes?.foods && foodsRes.foods.length > 0) {
@@ -83,28 +84,35 @@ export default function SettingsPage() {
     return () => {
       active = false;
     };
-  }, []);
+  }, [userId, targetCacheKey, getAuthHeaders]);
 
   const handleSaveTarget = async (nextValues: UserTargetPayload) => {
     const res = await fetch("/api/targets", {
       method: "PUT",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        ...getAuthHeaders(),
+      },
       body: JSON.stringify(nextValues),
     });
 
     if (res.ok) {
       const data = (await res.json()) as { target: UserTargetPayload };
       setTargetValues(nextValues);
-      try {
-        localStorage.setItem(
-          LOCAL_TARGET_CACHE_KEY,
-          JSON.stringify({ id: "default-user", ...data.target })
-        );
-      } catch {
-        // Abaikan error storage
+      if (targetCacheKey) {
+        try {
+          localStorage.setItem(
+            targetCacheKey,
+            JSON.stringify({ id: userId, user_id: userId, ...data.target })
+          );
+        } catch {
+          // Abaikan error storage
+        }
       }
     }
   };
+
+  if (!user) return null;
 
   return (
     <div className="flex min-h-dvh flex-col bg-canvas pb-12">
@@ -119,16 +127,16 @@ export default function SettingsPage() {
         </Link>
         <div>
           <h1 className="text-[20px] font-bold tracking-[-0.02em] text-ink">
-            Target & Tabel TKPI
+            Target &amp; Tabel TKPI
           </h1>
           <p className="text-[12px] font-medium text-ink-secondary">
-            Sesuaikan sasaran harian & referensi gizi per 100g
+            Sesuaikan sasaran harian &amp; kelola akun TAKAR
           </p>
         </div>
       </header>
 
       <main className="space-y-5 px-5 pt-2">
-        {/* Kartu Akun TAKAR */}
+        {/* Kartu Akun TAKAR & Tombol Logout */}
         <section className="flex items-center justify-between gap-3 rounded-3xl bg-surface p-4 shadow-soft">
           <div className="flex min-w-0 items-center gap-3">
             <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-emeraldBrand-soft text-emeraldBrand">
@@ -136,42 +144,44 @@ export default function SettingsPage() {
             </div>
             <div className="min-w-0">
               <p className="truncate text-[14px] font-bold text-ink">
-                {userProfile ? userProfile.name : "Akun TAKAR"}
+                {user.name}
               </p>
               <p className="truncate text-[12px] text-ink-secondary">
-                {userProfile
-                  ? userProfile.email
-                  : "Masuk untuk sinkronisasi profil"}
+                {user.email}
               </p>
             </div>
           </div>
 
-          {userProfile ? (
-            <button
-              type="button"
-              onClick={() => {
-                localStorage.removeItem("takar_user_profile_v1");
-                setUserProfile(null);
-                const supabase = getSupabaseBrowserClient();
-                if (supabase) {
-                  void supabase.auth.signOut();
-                }
-              }}
-              className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-xl bg-subtle px-3 text-[12px] font-semibold text-ink-secondary hover:text-terracotta"
-            >
-              <LogOut className="h-3.5 w-3.5" strokeWidth={1.8} />
-              <span>Keluar</span>
-            </button>
-          ) : (
-            <Link
-              href="/login"
-              className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-xl bg-emeraldBrand px-3.5 text-[12px] font-semibold text-white transition-colors hover:bg-emeraldBrand-hover"
-            >
-              <LogIn className="h-3.5 w-3.5" strokeWidth={1.8} />
-              <span>Masuk</span>
-            </Link>
-          )}
+          <button
+            type="button"
+            onClick={() => void signOut()}
+            className="inline-flex h-10 shrink-0 items-center gap-1.5 rounded-2xl bg-terracotta-soft px-3.5 text-[12.5px] font-semibold text-terracotta transition-colors hover:bg-terracotta hover:text-white"
+          >
+            <LogOut className="h-4 w-4" strokeWidth={1.8} />
+            <span>Keluar Akun</span>
+          </button>
         </section>
+
+        {/* Pintasan ke 3D Body Scanner & Profil Tubuh */}
+        <Link
+          href="/profile"
+          className="flex items-center justify-between gap-3 rounded-3xl bg-[#0B1220] p-4 text-white shadow-soft transition-transform active:scale-[0.99]"
+        >
+          <div className="flex items-center gap-3">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-cyan-400/15 text-cyan-300 ring-1 ring-cyan-400/30">
+              <ScanLine className="h-5 w-5" strokeWidth={1.8} />
+            </div>
+            <div>
+              <p className="text-[14px] font-bold text-white">
+                Buka 3D Body Scanner &amp; Program
+              </p>
+              <p className="text-[12px] text-slate-300">
+                Kalibrasi ulang BB, TB, BMI &amp; rumus Mifflin-St Jeor
+              </p>
+            </div>
+          </div>
+          <ChevronRight className="h-5 w-5 shrink-0 text-cyan-300" strokeWidth={1.8} />
+        </Link>
 
         {/* Form Target Makro */}
         <section className="space-y-2.5">
@@ -192,7 +202,7 @@ export default function SettingsPage() {
                 Pengali Cara Masak
               </h2>
               <p className="text-[12px] text-ink-secondary">
-                Tambahan minyak & bumbu per 100g bahan dasar
+                Tambahan minyak &amp; bumbu per 100g bahan dasar
               </p>
             </div>
           </div>

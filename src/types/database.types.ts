@@ -29,6 +29,7 @@ export interface CookingModifierRow {
 
 export interface UserTargetRow {
   id: string;
+  user_id?: string;
   daily_kcal: number;
   daily_protein_g: number;
   daily_carbs_g: number;
@@ -52,6 +53,7 @@ export interface MealItemRow {
 
 export interface MealLogRow {
   id: string;
+  user_id?: string;
   logged_at: string;
   meal_type: MealType;
   image_url: string | null;
@@ -64,4 +66,32 @@ export interface MealLogRow {
 
 export interface MealLogWithItems extends MealLogRow {
   meal_items: MealItemRow[];
+}
+
+export type GenderType = "pria" | "wanita";
+export type ActivityLevelType = "sedentary" | "light" | "moderate" | "active";
+export type GoalProgramType = "cutting" | "bulking" | "rekomposisi";
+
+export interface UserProfileRow {
+  user_id: string;
+  display_name: string | null;
+  gender: GenderType;
+  age: number;
+  weight_kg: number;
+  height_cm: number;
+  activity_level: ActivityLevelType;
+  goal_program: GoalProgramType;
+  bmi: number;
+  tdee_kcal: number;
+  target_kcal: number;
+  target_protein_g: number;
+  target_carbs_g: number;
+  target_fat_g: number;
+  current_streak: number;
+  longest_streak: number;
+  last_logged_date: string | null;
+  streak_history: string[];
+  last_celebrated_month: number;
+  onboarding_completed: boolean;
+  updated_at?: string;
 }

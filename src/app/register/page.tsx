@@ -4,11 +4,10 @@ import * as React from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowRight, Eye, EyeOff, Lock, Mail, User } from "lucide-react";
+import { useAuth } from "@/components/AuthProvider";
 import { TakaMascot, type TakaMood } from "@/components/TakaMascot";
 import { Button } from "@/components/ui/Button";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
-
-const LOCAL_USER_PROFILE_KEY = "takar_user_profile_v1";
 
 const GOAL_TARGET_PRESETS = {
   Cutting: {
@@ -35,6 +34,8 @@ type GoalKey = keyof typeof GOAL_TARGET_PRESETS;
 
 export default function RegisterPage() {
   const router = useRouter();
+  const { setDevFallbackSession } = useAuth();
+
   const [fullName, setFullName] = React.useState("");
   const [email, setEmail] = React.useState("");
   const [password, setPassword] = React.useState("");
@@ -57,8 +58,8 @@ export default function RegisterPage() {
       const cleanName = fullName.trim() || "Sobat Takar";
       const cleanEmail = email.trim().toLowerCase();
       const targetPreset = GOAL_TARGET_PRESETS[selectedGoal];
-
       const supabase = getSupabaseBrowserClient();
+
       if (supabase) {
         const { data, error } = await supabase.auth.signUp({
           email: cleanEmail,
@@ -79,53 +80,80 @@ export default function RegisterPage() {
           return;
         }
 
-        localStorage.setItem(
-          LOCAL_USER_PROFILE_KEY,
-          JSON.stringify({
-            name: cleanName,
-            email: cleanEmail,
-          })
-        );
-
-        // Simpan target awal sesuai pilihan goal user
-        localStorage.setItem(
-          "takar_target_cache_v1",
-          JSON.stringify({ id: "default-user", ...targetPreset })
-        );
-        await fetch("/api/targets", {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(targetPreset),
-        }).catch(() => undefined);
-
-        if (data.user && !data.session) {
-          setMascotMood("happy");
-          setInfoMessage(
-            "Pendaftaran Akun TAKAR berhasil! Silakan cek kotak masuk emailmu untuk verifikasi atau langsung masuk."
+        if (data.user?.id) {
+          localStorage.setItem(
+            `takar_target_v2_${data.user.id}`,
+            JSON.stringify({
+              id: data.user.id,
+              user_id: data.user.id,
+              ...targetPreset,
+            })
           );
+        }
+
+        if (data.session?.access_token) {
+          await fetch("/api/targets", {
+            method: "PUT",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${data.session.access_token}`,
+            },
+            body: JSON.stringify(targetPreset),
+          }).catch(() => undefined);
+
+          try {
+            sessionStorage.setItem("takar_trigger_welcome_v1", "1");
+          } catch {
+            // Abaikan error sessionStorage
+          }
+
+          setMascotMood("excited");
+          router.replace("/");
           return;
         }
-      } else {
-        localStorage.setItem(
-          LOCAL_USER_PROFILE_KEY,
-          JSON.stringify({
-            name: cleanName,
-            email: cleanEmail,
-          })
+
+        // Jika Supabase mengaktifkan konfirmasi email wajib sebelum sesi diterbitkan
+        setMascotMood("happy");
+        setInfoMessage(
+          "Akun TAKAR berhasil dibuat! Silakan cek kotak masuk emailmu untuk konfirmasi lalu masuk."
         );
-        localStorage.setItem(
-          "takar_target_cache_v1",
-          JSON.stringify({ id: "default-user", ...targetPreset })
-        );
-        await fetch("/api/targets", {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(targetPreset),
-        }).catch(() => undefined);
+        return;
+      }
+
+      // Fallback sesi akun lokal terisolasi saat Supabase belum dikonfigurasi
+      const devUserId = `dev-${cleanEmail.replace(/[^a-z0-9]/g, "-")}`;
+      setDevFallbackSession({
+        id: devUserId,
+        email: cleanEmail,
+        name: cleanName,
+      });
+
+      localStorage.setItem(
+        `takar_target_v2_${devUserId}`,
+        JSON.stringify({
+          id: devUserId,
+          user_id: devUserId,
+          ...targetPreset,
+        })
+      );
+
+      await fetch("/api/targets", {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          "x-takar-dev-user-id": devUserId,
+        },
+        body: JSON.stringify(targetPreset),
+      }).catch(() => undefined);
+
+      try {
+        sessionStorage.setItem("takar_trigger_welcome_v1", "1");
+      } catch {
+        // Abaikan error sessionStorage
       }
 
       setMascotMood("excited");
-      router.push("/");
+      router.replace("/");
     } catch {
       setMascotMood("worried");
       setErrorMessage("Terjadi kendala saat membuat akun TAKAR.");
@@ -283,9 +311,15 @@ export default function RegisterPage() {
         ) : null}
 
         {infoMessage ? (
-          <p className="rounded-2xl bg-emeraldBrand-soft px-3.5 py-2.5 text-[12.5px] font-medium text-emeraldBrand">
-            {infoMessage}
-          </p>
+          <div className="space-y-2.5 rounded-2xl bg-emeraldBrand-soft p-3.5 text-[12.5px] font-medium text-emeraldBrand">
+            <p>{infoMessage}</p>
+            <Link
+              href="/login"
+              className="inline-flex h-9 w-full items-center justify-center rounded-xl bg-emeraldBrand text-[12.5px] font-semibold text-white"
+            >
+              Ke Halaman Masuk TAKAR
+            </Link>
+          </div>
         ) : null}
 
         <div className="pt-1">

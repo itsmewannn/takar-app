@@ -4,14 +4,15 @@ import * as React from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowRight, Eye, EyeOff, Lock, Mail } from "lucide-react";
+import { useAuth } from "@/components/AuthProvider";
 import { TakaMascot, type TakaMood } from "@/components/TakaMascot";
 import { Button } from "@/components/ui/Button";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 
-const LOCAL_USER_PROFILE_KEY = "takar_user_profile_v1";
-
 export default function LoginPage() {
   const router = useRouter();
+  const { setDevFallbackSession } = useAuth();
+
   const [email, setEmail] = React.useState("");
   const [password, setPassword] = React.useState("");
   const [showPassword, setShowPassword] = React.useState(false);
@@ -30,7 +31,7 @@ export default function LoginPage() {
       const supabase = getSupabaseBrowserClient();
 
       if (supabase) {
-        const { data, error } = await supabase.auth.signInWithPassword({
+        const { error } = await supabase.auth.signInWithPassword({
           email: trimmedEmail,
           password,
         });
@@ -40,37 +41,31 @@ export default function LoginPage() {
           setErrorMessage(
             error.message === "Invalid login credentials"
               ? "Email atau kata sandi belum sesuai. Silakan periksa kembali."
-              : "Gagal masuk ke akun TAKAR. Pastikan email dan kata sandi benar."
+              : error.message.toLowerCase().includes("email not confirmed")
+                ? "Email belum diverifikasi. Silakan cek kotak masuk emailmu terlebih dahulu."
+                : "Gagal masuk ke akun TAKAR. Pastikan email dan kata sandi benar."
           );
           return;
         }
-
-        const metaName =
-          (data.user?.user_metadata?.full_name as string | undefined) ||
-          trimmedEmail.split("@")[0] ||
-          "Sobat Takar";
-
-        localStorage.setItem(
-          LOCAL_USER_PROFILE_KEY,
-          JSON.stringify({
-            name: metaName,
-            email: trimmedEmail,
-          })
-        );
       } else {
-        // Fallback sesi lokal saat kredensial Supabase belum dikonfigurasi
+        // Fallback sesi akun lokal terisolasi bila kredensial Supabase belum diisi di env lokal
+        const deterministicDevId = `dev-${trimmedEmail.replace(/[^a-z0-9]/g, "-")}`;
         const fallbackName = trimmedEmail.split("@")[0] || "Sobat Takar";
-        localStorage.setItem(
-          LOCAL_USER_PROFILE_KEY,
-          JSON.stringify({
-            name: fallbackName,
-            email: trimmedEmail,
-          })
-        );
+        setDevFallbackSession({
+          id: deterministicDevId,
+          email: trimmedEmail,
+          name: fallbackName,
+        });
+      }
+
+      try {
+        sessionStorage.setItem("takar_trigger_welcome_v1", "1");
+      } catch {
+        // Abaikan bila sessionStorage dibatasi
       }
 
       setMascotMood("excited");
-      router.push("/");
+      router.replace("/");
     } catch {
       setMascotMood("worried");
       setErrorMessage("Terjadi kendala koneksi. Silakan coba sesaat lagi.");
@@ -82,24 +77,24 @@ export default function LoginPage() {
   return (
     <div className="flex min-h-dvh flex-col justify-between bg-canvas px-5 py-8">
       {/* Bagian Atas: Maskot & Identitas TAKAR */}
-      <div className="mx-auto flex w-full max-w-[380px] flex-col items-center pt-2 text-center">
+      <div className="mx-auto flex w-full max-w-[380px] flex-col items-center pt-3 text-center">
         <div className="flex h-24 w-24 items-center justify-center rounded-3xl bg-surface shadow-soft">
           <TakaMascot mood={mascotMood} size={82} />
         </div>
 
         <span className="mt-4 inline-flex items-center rounded-full bg-emeraldBrand-soft px-3 py-1 text-[11px] font-bold uppercase tracking-wider text-emeraldBrand">
-          TAKAR • Nutrisi Lokal
+          TAKAR • Asisten Nutrisi Harian
         </span>
 
         <h1 className="mt-2.5 text-[24px] font-extrabold tracking-[-0.02em] text-ink">
           Masuk ke TAKAR
         </h1>
         <p className="mt-1.5 max-w-[300px] text-[13.5px] leading-relaxed text-ink-secondary">
-          Asisten takaran protein dan kalori harian untuk makanan rumahan &amp; warteg Indonesia.
+          Masuk ke akunmu untuk mengakses riwayat makan dan target protein harian secara aman.
         </p>
       </div>
 
-      {/* Kartu Form Login */}
+      {/* Kartu Form Login Wajib (Tanpa Mode Tamu) */}
       <form
         onSubmit={(e) => void handleLogin(e)}
         className="mx-auto my-6 w-full max-w-[380px] space-y-4 rounded-3xl bg-surface p-6 shadow-soft"
@@ -175,7 +170,7 @@ export default function LoginPage() {
           </p>
         ) : null}
 
-        <div className="space-y-2.5 pt-1">
+        <div className="pt-1">
           <Button
             type="submit"
             variant="primary"
@@ -186,13 +181,6 @@ export default function LoginPage() {
             <span>Masuk ke TAKAR</span>
             <ArrowRight className="h-4 w-4" strokeWidth={2} />
           </Button>
-
-          <Link
-            href="/"
-            className="inline-flex h-11 w-full items-center justify-center rounded-2xl bg-subtle text-[13px] font-semibold text-ink-secondary transition-colors hover:bg-slate-200/75 hover:text-ink"
-          >
-            Lanjut Langsung ke Beranda TAKAR
-          </Link>
         </div>
       </form>
 

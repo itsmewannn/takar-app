@@ -1,14 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { Camera, SlidersHorizontal } from "lucide-react";
+import { Camera, ScanLine } from "lucide-react";
 
 export function BottomActionDock() {
   return (
-    <nav
-      aria-label="Aksi utama"
-      className="grid grid-cols-2 gap-3"
-    >
+    <nav aria-label="Aksi utama" className="grid grid-cols-2 gap-3">
       <Link
         href="/scan"
         className="inline-flex h-[52px] items-center justify-center gap-2.5 rounded-2xl bg-charcoal px-4 text-[14px] font-semibold text-white shadow-soft transition-all hover:bg-charcoal-hover active:scale-[0.99]"
@@ -18,14 +15,14 @@ export function BottomActionDock() {
       </Link>
 
       <Link
-        href="/settings"
+        href="/profile"
         className="inline-flex h-[52px] items-center justify-center gap-2.5 rounded-2xl bg-charcoal px-4 text-[14px] font-semibold text-white shadow-soft transition-all hover:bg-charcoal-hover active:scale-[0.99]"
       >
-        <SlidersHorizontal
-          className="h-[18px] w-[18px] text-white"
+        <ScanLine
+          className="h-[18px] w-[18px] text-cyan-300"
           strokeWidth={1.8}
         />
-        <span>Atur Target</span>
+        <span>Profil Tubuh</span>
       </Link>
     </nav>
   );

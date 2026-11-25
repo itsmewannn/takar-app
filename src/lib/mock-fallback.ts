@@ -2,8 +2,10 @@ import { VisionOutputSchema, type VisionOutput } from "@/schemas/vision-output.s
 import type {
   MealItemRow,
   MealLogWithItems,
+  UserProfileRow,
   UserTargetRow,
 } from "@/types/database.types";
+import { buildDefaultUserProfile } from "./body-profile-engine";
 import type { TkpiFood } from "@/types/nutrition.types";
 import type {
   CreateMealPayload,
@@ -734,66 +736,108 @@ export function getMockVisionOutput(): VisionOutput {
 }
 
 // ============================================================================
-// In-Memory Dev Fallback Store (aktif otomatis jika kredensial Supabase kosong)
+// In-Memory Dev Fallback Store (terisolasi per user_id saat Supabase kosong)
 // Disimpan di globalThis agar tahan terhadap hot-reload selama `next dev`.
 // ============================================================================
 
 interface LocalFallbackStore {
-  target: UserTargetRow;
-  meals: MealLogWithItems[];
+  targetsByUser: Record<string, UserTargetRow>;
+  mealsByUser: Record<string, MealLogWithItems[]>;
+  profilesByUser: Record<string, UserProfileRow>;
 }
 
 const globalForTakar = globalThis as unknown as {
-  __TAKAR_FALLBACK_STORE__?: LocalFallbackStore;
+  __TAKAR_FALLBACK_STORE_V2__?: LocalFallbackStore;
 };
 
 function getFallbackStore(): LocalFallbackStore {
-  if (!globalForTakar.__TAKAR_FALLBACK_STORE__) {
-    globalForTakar.__TAKAR_FALLBACK_STORE__ = {
-      target: {
-        id: "default-user",
-        daily_kcal: 2200,
-        daily_protein_g: 130,
-        daily_carbs_g: 250,
-        daily_fat_g: 65,
-        updated_at: new Date().toISOString(),
-      },
-      meals: [],
+  if (!globalForTakar.__TAKAR_FALLBACK_STORE_V2__) {
+    globalForTakar.__TAKAR_FALLBACK_STORE_V2__ = {
+      targetsByUser: {},
+      mealsByUser: {},
+      profilesByUser: {},
     };
   }
-  return globalForTakar.__TAKAR_FALLBACK_STORE__;
+  if (!globalForTakar.__TAKAR_FALLBACK_STORE_V2__.profilesByUser) {
+    globalForTakar.__TAKAR_FALLBACK_STORE_V2__.profilesByUser = {};
+  }
+  return globalForTakar.__TAKAR_FALLBACK_STORE_V2__;
 }
 
-export function getFallbackUserTarget(): UserTargetRow {
-  return getFallbackStore().target;
+export function getFallbackUserProfile(userId: string): UserProfileRow {
+  const store = getFallbackStore();
+  if (!store.profilesByUser[userId]) {
+    store.profilesByUser[userId] = buildDefaultUserProfile(userId);
+  }
+  return store.profilesByUser[userId]!;
+}
+
+export function upsertFallbackUserProfile(
+  userId: string,
+  patch: Partial<UserProfileRow>
+): UserProfileRow {
+  const store = getFallbackStore();
+  const existing = getFallbackUserProfile(userId);
+  const updated: UserProfileRow = {
+    ...existing,
+    ...patch,
+    user_id: userId,
+    updated_at: new Date().toISOString(),
+  };
+  store.profilesByUser[userId] = updated;
+  return updated;
+}
+
+export function getFallbackUserTarget(userId: string): UserTargetRow {
+  const store = getFallbackStore();
+  if (!store.targetsByUser[userId]) {
+    store.targetsByUser[userId] = {
+      id: userId,
+      user_id: userId,
+      daily_kcal: 2200,
+      daily_protein_g: 130,
+      daily_carbs_g: 250,
+      daily_fat_g: 65,
+      updated_at: new Date().toISOString(),
+    };
+  }
+  return store.targetsByUser[userId]!;
 }
 
 export function updateFallbackUserTarget(
+  userId: string,
   payload: UserTargetPayload
 ): UserTargetRow {
   const store = getFallbackStore();
-  store.target = {
-    id: "default-user",
+  const updated: UserTargetRow = {
+    id: userId,
+    user_id: userId,
     ...payload,
     updated_at: new Date().toISOString(),
   };
-  return store.target;
+  store.targetsByUser[userId] = updated;
+  return updated;
 }
 
-export function listFallbackMealsForDate(dateIso?: string): MealLogWithItems[] {
+export function listFallbackMealsForDate(
+  userId: string,
+  dateIso?: string
+): MealLogWithItems[] {
   const store = getFallbackStore();
+  const userMeals = store.mealsByUser[userId] ?? [];
   if (!dateIso) {
-    return [...store.meals].sort((a, b) =>
+    return [...userMeals].sort((a, b) =>
       b.logged_at.localeCompare(a.logged_at)
     );
   }
   const dayPrefix = dateIso.slice(0, 10);
-  return store.meals
+  return userMeals
     .filter((m) => m.logged_at.slice(0, 10) === dayPrefix)
     .sort((a, b) => b.logged_at.localeCompare(a.logged_at));
 }
 
 export function createFallbackMeal(
+  userId: string,
   payload: CreateMealPayload
 ): MealLogWithItems {
   const store = getFallbackStore();
@@ -816,6 +860,7 @@ export function createFallbackMeal(
 
   const created: MealLogWithItems = {
     id: mealId,
+    user_id: userId,
     logged_at: nowIso,
     meal_type: payload.meal_type,
     image_url: payload.image_url ?? null,
@@ -827,25 +872,32 @@ export function createFallbackMeal(
     meal_items: mealItems,
   };
 
-  store.meals.unshift(created);
+  if (!store.mealsByUser[userId]) {
+    store.mealsByUser[userId] = [];
+  }
+  store.mealsByUser[userId]!.unshift(created);
   return created;
 }
 
-export function deleteFallbackMeal(id: string): boolean {
+export function deleteFallbackMeal(userId: string, id: string): boolean {
   const store = getFallbackStore();
-  const before = store.meals.length;
-  store.meals = store.meals.filter((m) => m.id !== id);
-  return store.meals.length < before;
+  const existing = store.mealsByUser[userId] ?? [];
+  const before = existing.length;
+  store.mealsByUser[userId] = existing.filter((m) => m.id !== id);
+  return store.mealsByUser[userId]!.length < before;
 }
 
 export function updateFallbackMeal(
+  userId: string,
   id: string,
   patch: UpdateMealPayload
 ): MealLogWithItems | null {
   const store = getFallbackStore();
-  const idx = store.meals.findIndex((m) => m.id === id);
+  const userMeals = store.mealsByUser[userId];
+  if (!userMeals) return null;
+  const idx = userMeals.findIndex((m) => m.id === id);
   if (idx === -1) return null;
-  const existing = store.meals[idx];
+  const existing = userMeals[idx];
   if (!existing) return null;
 
   const updated: MealLogWithItems = {
@@ -862,6 +914,6 @@ export function updateFallbackMeal(
       ? { total_fat_g: patch.total_fat_g }
       : {}),
   };
-  store.meals[idx] = updated;
+  userMeals[idx] = updated;
   return updated;
 }

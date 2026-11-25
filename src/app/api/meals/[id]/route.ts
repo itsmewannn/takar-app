@@ -4,24 +4,37 @@ import {
   deleteFallbackMeal,
   updateFallbackMeal,
 } from "@/lib/mock-fallback";
-import { getSupabaseServerClient } from "@/lib/supabase/server";
+import { getAuthenticatedRequestContext } from "@/lib/supabase/server";
 
 interface RouteContext {
   params: Promise<{ id: string }>;
 }
 
-export async function DELETE(_request: Request, context: RouteContext) {
+export async function DELETE(request: Request, context: RouteContext) {
+  const auth = await getAuthenticatedRequestContext(request);
+  if (!auth) {
+    return NextResponse.json(
+      { error: "Sesi login diperlukan." },
+      { status: 401 }
+    );
+  }
+
+  const { supabase, userId } = auth;
   const { id } = await context.params;
-  const supabase = getSupabaseServerClient();
 
   if (!supabase) {
-    const deleted = deleteFallbackMeal(id);
+    const deleted = deleteFallbackMeal(userId, id);
     return NextResponse.json({ deleted, source: "local_fallback" });
   }
 
-  const { error } = await supabase.from("meal_logs").delete().eq("id", id);
+  const { error } = await supabase
+    .from("meal_logs")
+    .delete()
+    .eq("id", id)
+    .eq("user_id", userId);
+
   if (error) {
-    const deleted = deleteFallbackMeal(id);
+    const deleted = deleteFallbackMeal(userId, id);
     return NextResponse.json({ deleted, source: "local_fallback" });
   }
 
@@ -29,6 +42,15 @@ export async function DELETE(_request: Request, context: RouteContext) {
 }
 
 export async function PATCH(request: Request, context: RouteContext) {
+  const auth = await getAuthenticatedRequestContext(request);
+  if (!auth) {
+    return NextResponse.json(
+      { error: "Sesi login diperlukan." },
+      { status: 401 }
+    );
+  }
+
+  const { supabase, userId } = auth;
   const { id } = await context.params;
 
   try {
@@ -41,9 +63,8 @@ export async function PATCH(request: Request, context: RouteContext) {
       );
     }
 
-    const supabase = getSupabaseServerClient();
     if (!supabase) {
-      const updated = updateFallbackMeal(id, parsed.data);
+      const updated = updateFallbackMeal(userId, id, parsed.data);
       if (!updated) {
         return NextResponse.json(
           { error: "Catatan makan tidak ditemukan." },
@@ -57,11 +78,12 @@ export async function PATCH(request: Request, context: RouteContext) {
       .from("meal_logs")
       .update(parsed.data)
       .eq("id", id)
+      .eq("user_id", userId)
       .select("*, meal_items(*)")
       .single();
 
     if (error || !data) {
-      const fallbackUpdated = updateFallbackMeal(id, parsed.data);
+      const fallbackUpdated = updateFallbackMeal(userId, id, parsed.data);
       if (!fallbackUpdated) {
         return NextResponse.json(
           { error: "Catatan makan tidak ditemukan." },
