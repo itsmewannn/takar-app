@@ -21,6 +21,7 @@ import {
 } from "@/components/profile/BodyScannerCard";
 import { MonthlyMilestoneModal } from "@/components/streak/MonthlyMilestoneModal";
 import { StreakBadgeDrawer } from "@/components/streak/StreakBadgeDrawer";
+import { StreakCelebrationModal } from "@/components/streak/StreakCelebrationModal";
 import { TakaCoachBot } from "@/components/TakaCoachBot";
 import { TakaMascot } from "@/components/TakaMascot";
 import { ProgressBar } from "@/components/ui/ProgressBar";
@@ -77,6 +78,19 @@ export default function DashboardPage() {
   const [meals, setMeals] = React.useState<MealLogWithItems[]>([]);
   const [mealsLoaded, setMealsLoaded] = React.useState(false);
   const [todayLabel, setTodayLabel] = React.useState<string>("");
+
+  // Modal selebrasi Streak harian ala Duolingo Fire (otomatis saat +1 & mode pratinjau 5 warna)
+  const [streakCelebration, setStreakCelebration] = React.useState<{
+    open: boolean;
+    previousStreak: number;
+    streakDays: number;
+    isPreview: boolean;
+  }>({
+    open: false,
+    previousStreak: 0,
+    streakDays: 1,
+    isPreview: false,
+  });
 
   // Modal milestone 30/60/90 hari (otomatis & pratinjau testing)
   const [milestoneModal, setMilestoneModal] = React.useState<{
@@ -256,17 +270,18 @@ export default function DashboardPage() {
       targetKcal: target.daily_kcal,
     });
 
+    const prevStreakBeforeUpdate = profile.current_streak;
     const nextStreak = result.current_streak;
     const reachedMonth =
       nextStreak >= 30 && nextStreak % 30 === 0
         ? Math.floor(nextStreak / 30)
         : 0;
-    const shouldCelebrate =
+    const shouldCelebrateMonth =
       reachedMonth > 0 && reachedMonth > profile.last_celebrated_month;
 
-    if (!result.didChange && !shouldCelebrate) return;
+    if (!result.didChange && !shouldCelebrateMonth) return;
 
-    const nextCelebratedMonth = shouldCelebrate
+    const nextCelebratedMonth = shouldCelebrateMonth
       ? reachedMonth
       : profile.last_celebrated_month;
 
@@ -286,7 +301,15 @@ export default function DashboardPage() {
       // Abaikan error storage
     }
 
-    if (shouldCelebrate) {
+    // Nyalakan modal selebrasi api layar penuh setiap kali streak harian bertambah (+1)!
+    if (result.didIncrementToday) {
+      setStreakCelebration({
+        open: true,
+        previousStreak: prevStreakBeforeUpdate,
+        streakDays: nextStreak,
+        isPreview: false,
+      });
+    } else if (shouldCelebrateMonth) {
       setMilestoneModal({
         open: true,
         monthNumber: reachedMonth,
@@ -379,7 +402,7 @@ export default function DashboardPage() {
   // Onboarding Otomatis Pertama Kali Setelah Login dengan 3D Body Scanner
   if (profileLoaded && profile && !profile.onboarding_completed) {
     return (
-      <div className="flex min-h-dvh flex-col bg-canvas px-5 pb-10 pt-6">
+      <div className="flex min-h-dvh flex-col bg-canvas px-5 pb-10 pt-[max(1.5rem,calc(env(safe-area-inset-top)+0.75rem))]">
         <div className="mb-4 flex items-center justify-between gap-3">
           <div className="flex items-center gap-3">
             <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-surface shadow-soft">
@@ -413,7 +436,7 @@ export default function DashboardPage() {
   return (
     <div className="flex min-h-dvh flex-col bg-canvas">
       {/* Top Header: Sapaan + Badge Streak Api + Settings + Logout */}
-      <header className="flex items-center justify-between gap-2 px-5 pb-3 pt-5">
+      <header className="flex items-center justify-between gap-2 px-5 pb-3 pt-[max(1.25rem,calc(env(safe-area-inset-top)+0.5rem))]">
         <div className="min-w-0 flex-1">
           <h1 className="truncate text-[19px] font-bold tracking-[-0.02em] text-ink">
             Halo, {user.name}
@@ -439,7 +462,15 @@ export default function DashboardPage() {
             currentStreak={currentStreak}
             longestStreak={longestStreak}
             streakHistory={streakHistory}
-            onPreviewMilestone={() =>
+            onPreviewStreakTier={(previewDays, previousDays) =>
+              setStreakCelebration({
+                open: true,
+                previousStreak: previousDays,
+                streakDays: previewDays,
+                isPreview: true,
+              })
+            }
+            onPreviewMonthlyMilestone={() =>
               setMilestoneModal({
                 open: true,
                 monthNumber: Math.max(1, Math.floor(currentStreak / 30) || 1),
@@ -596,6 +627,19 @@ export default function DashboardPage() {
         targetProteinG={target.daily_protein_g}
         hiddenKcal={totals.hidden_kcal}
         mealCount={meals.length}
+      />
+
+      {/* Modal Selebrasi Streak Harian ala Duolingo Fire (+1 & Uji 5 Warna Api) */}
+      <StreakCelebrationModal
+        open={streakCelebration.open}
+        previousStreak={streakCelebration.previousStreak}
+        streakDays={streakCelebration.streakDays}
+        streakHistory={streakHistory}
+        userName={user.name}
+        isPreview={streakCelebration.isPreview}
+        onClose={() =>
+          setStreakCelebration((prev) => ({ ...prev, open: false }))
+        }
       />
 
       {/* Modal Selebrasi & Apresiasi Bulanan (30/60/90 Hari + Mode Pratinjau) */}

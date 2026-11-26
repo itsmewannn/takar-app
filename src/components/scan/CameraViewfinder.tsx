@@ -88,7 +88,7 @@ export function CameraViewfinder({
       />
 
       {/* Top Header */}
-      <header className="relative z-20 flex items-center justify-between px-5 pb-3 pt-5">
+      <header className="relative z-20 flex items-center justify-between px-5 pb-3 pt-[max(1.25rem,calc(env(safe-area-inset-top)+0.5rem))]">
         <div>
           <span className="inline-flex rounded-full bg-emeraldBrand/25 px-2.5 py-0.5 font-mono text-[10px] font-semibold uppercase tracking-wider text-[#6EE7B7]">
             Kalibrasi Skala

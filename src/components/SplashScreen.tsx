@@ -5,62 +5,81 @@ import { TakaMascot, type TakaMood } from "./TakaMascot";
 
 export const SPLASH_SESSION_KEY = "takar_splash_seen_v1";
 export const SPLASH_COMPLETE_EVENT = "takar:splash-complete";
+export const TRIGGER_LOADING_EVENT = "takar:trigger-loading";
+
+export interface TriggerLoadingDetail {
+  message?: string;
+  durationMs?: number;
+}
 
 export interface SplashScreenProps {
   onComplete?: () => void;
 }
 
 export function SplashScreen({ onComplete }: SplashScreenProps) {
-  const [visible, setVisible] = React.useState(false);
+  const uid = React.useId().replace(/:/g, "");
+  const [visible, setVisible] = React.useState(true);
   const [exiting, setExiting] = React.useState(false);
   const [mascotMood, setMascotMood] = React.useState<TakaMood>("thinking");
-  const [progressPct, setProgressPct] = React.useState(10);
+  const [microCopy, setMicroCopy] = React.useState(
+    "Menyiapkan takaran nutrisimu..."
+  );
 
-  React.useEffect(() => {
-    try {
-      const alreadySeen = sessionStorage.getItem(SPLASH_SESSION_KEY);
-      if (alreadySeen === "1") {
+  const runSequence = React.useCallback(
+    (durationMs = 1350, customMessage?: string) => {
+      setExiting(false);
+      setVisible(true);
+      setMascotMood("thinking");
+      setMicroCopy(customMessage ?? "Menyiapkan takaran nutrisimu...");
+
+      const tExcited = setTimeout(() => {
+        setMascotMood("excited");
+      }, Math.round(durationMs * 0.46));
+
+      const tExit = setTimeout(() => {
+        setExiting(true);
+      }, Math.max(400, durationMs - 280));
+
+      const tDone = setTimeout(() => {
+        try {
+          sessionStorage.setItem(SPLASH_SESSION_KEY, "1");
+        } catch {
+          // Abaikan bila sessionStorage dibatasi
+        }
+        setVisible(false);
+        setExiting(false);
+        window.dispatchEvent(new CustomEvent(SPLASH_COMPLETE_EVENT));
         onComplete?.();
-        return;
-      }
-    } catch {
-      onComplete?.();
-      return;
-    }
+      }, durationMs);
 
-    setVisible(true);
+      return () => {
+        clearTimeout(tExcited);
+        clearTimeout(tExit);
+        clearTimeout(tDone);
+      };
+    },
+    [onComplete]
+  );
 
-    // Jalankan animasi progress bar & transisi mood thinking -> happy
-    const tProgressStart = setTimeout(() => {
-      setProgressPct(100);
-    }, 60);
+  // Tampil otomatis setiap aplikasi dibuka (cek sesi) & saat transisi setelah login
+  React.useEffect(() => {
+    const cleanupInitial = runSequence(1380, "Menyiapkan takaran nutrisimu...");
 
-    const tMoodHappy = setTimeout(() => {
-      setMascotMood("happy");
-    }, 700);
+    const handleCustomTrigger = (evt: Event) => {
+      const custom = evt as CustomEvent<TriggerLoadingDetail | undefined>;
+      runSequence(
+        custom.detail?.durationMs ?? 1250,
+        custom.detail?.message ?? "Menyiapkan takaran nutrisimu..."
+      );
+    };
 
-    const tStartExit = setTimeout(() => {
-      setExiting(true);
-    }, 1320);
-
-    const tFinish = setTimeout(() => {
-      try {
-        sessionStorage.setItem(SPLASH_SESSION_KEY, "1");
-      } catch {
-        // Abaikan bila sessionStorage dibatasi
-      }
-      setVisible(false);
-      window.dispatchEvent(new CustomEvent(SPLASH_COMPLETE_EVENT));
-      onComplete?.();
-    }, 1620);
+    window.addEventListener(TRIGGER_LOADING_EVENT, handleCustomTrigger);
 
     return () => {
-      clearTimeout(tProgressStart);
-      clearTimeout(tMoodHappy);
-      clearTimeout(tStartExit);
-      clearTimeout(tFinish);
+      cleanupInitial();
+      window.removeEventListener(TRIGGER_LOADING_EVENT, handleCustomTrigger);
     };
-  }, [onComplete]);
+  }, [runSequence]);
 
   if (!visible) return null;
 
@@ -69,45 +88,92 @@ export function SplashScreen({ onComplete }: SplashScreenProps) {
       aria-live="polite"
       aria-label="Memuat aplikasi TAKAR"
       className={[
-        "fixed inset-0 z-50 flex items-center justify-center bg-[#EBEEF4] transition-all duration-300 ease-out",
-        exiting ? "pointer-events-none scale-[1.04] opacity-0" : "scale-100 opacity-100",
+        "fixed inset-0 z-[60] flex items-center justify-center bg-[#EBEEF4] transition-all duration-300 ease-out",
+        exiting
+          ? "pointer-events-none scale-[1.06] opacity-0"
+          : "scale-100 opacity-100",
       ].join(" ")}
     >
-      <div className="relative flex h-dvh w-full max-w-[460px] flex-col items-center justify-center overflow-hidden bg-canvas px-6">
-        {/* Lingkaran dekorasi lembut khas gaya Modern Fintech */}
+      <div className="relative flex h-dvh w-full max-w-[460px] flex-col items-center justify-center overflow-hidden bg-gradient-to-b from-[#F0FDF4] via-[#F6F8FB] to-[#ECFDF5] px-6">
+        {/* Glow Latar Lembut */}
         <div
           aria-hidden="true"
-          className="pointer-events-none absolute -top-20 -right-20 h-64 w-64 rounded-full bg-emeraldBrand/[0.05]"
-        />
-        <div
-          aria-hidden="true"
-          className="pointer-events-none absolute -bottom-24 -left-20 h-72 w-72 rounded-full bg-amber-300/10"
+          className="pointer-events-none absolute h-72 w-72 rounded-full bg-emerald-400/15 blur-3xl"
         />
 
-        {/* Maskot muncul dengan pop-in + bounce lembut */}
-        <div className="animate-taka-pop">
-          <TakaMascot mood={mascotMood} size={138} />
+        {/* Cincin Energi Emerald-Kuning Berputar + Maskot Melompat Halus */}
+        <div className="relative flex h-44 w-44 items-center justify-center">
+          <svg
+            viewBox="0 0 180 180"
+            className="pointer-events-none absolute inset-0 h-full w-full animate-energy-spin"
+            fill="none"
+            aria-hidden="true"
+          >
+            <defs>
+              <linearGradient
+                id={`${uid}-energy-ring`}
+                x1="16"
+                y1="16"
+                x2="164"
+                y2="164"
+                gradientUnits="userSpaceOnUse"
+              >
+                <stop offset="0%" stopColor="#10B981" />
+                <stop offset="50%" stopColor="#FACC15" />
+                <stop offset="100%" stopColor="#34D399" stopOpacity="0.15" />
+              </linearGradient>
+            </defs>
+            <circle
+              cx="90"
+              cy="90"
+              r="78"
+              stroke="#10B981"
+              strokeOpacity="0.12"
+              strokeWidth="3"
+            />
+            <circle
+              cx="90"
+              cy="90"
+              r="78"
+              stroke={`url(#${uid}-energy-ring)`}
+              strokeWidth="4.5"
+              strokeLinecap="round"
+              strokeDasharray="280 180"
+            />
+            <circle cx="90" cy="12" r="5" fill="#10B981" />
+            <circle cx="168" cy="90" r="4" fill="#FACC15" />
+          </svg>
+
+          <svg
+            viewBox="0 0 180 180"
+            className="pointer-events-none absolute inset-3 h-[calc(100%-24px)] w-[calc(100%-24px)] animate-energy-spin-reverse"
+            fill="none"
+            aria-hidden="true"
+          >
+            <circle
+              cx="90"
+              cy="90"
+              r="64"
+              stroke="#FACC15"
+              strokeOpacity="0.38"
+              strokeWidth="2"
+              strokeDasharray="12 10"
+            />
+          </svg>
+
+          <div className="animate-taka-hop">
+            <TakaMascot mood={mascotMood} size={112} />
+          </div>
         </div>
 
-        {/* Teks logo TAKAR slide-up */}
-        <div
-          className="mt-4 animate-taka-slide-up text-center"
-          style={{ animationDelay: "120ms", animationFillMode: "both" }}
-        >
-          <span className="inline-block text-[28px] font-extrabold tracking-[-0.03em] text-ink">
+        {/* Brand & Micro-Copy */}
+        <div className="mt-5 animate-taka-slide-up text-center">
+          <span className="inline-block text-[26px] font-extrabold tracking-[-0.03em] text-ink">
             TAKAR
           </span>
-          <p className="mt-1 text-[13px] font-medium text-ink-secondary">
-            Kalibrasi Protein &amp; Makro Makanan Lokal
+          <p className="mt-1.5 text-[13px] font-semibold text-emerald-700/85">
+            {microCopy}
           </p>
-        </div>
-
-        {/* Progress bar tipis minimalis */}
-        <div className="mt-7 w-40 overflow-hidden rounded-full bg-subtle h-[5px]">
-          <div
-            className="h-full rounded-full bg-emeraldBrand transition-all duration-[1200ms] ease-out"
-            style={{ width: `${progressPct}%` }}
-          />
         </div>
       </div>
     </div>

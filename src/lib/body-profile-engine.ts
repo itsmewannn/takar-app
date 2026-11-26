@@ -68,7 +68,6 @@ export function calculateBodyMetricsAndTargets(params: {
   else if (bmi < 30.0) bmiCategory = "Overweight";
   else bmiCategory = "Obesitas";
 
-  // Mifflin-St Jeor Equation
   const rawBmr =
     params.gender === "pria"
       ? 10 * safeWeight + 6.25 * safeHeight - 5 * safeAge + 5
@@ -118,98 +117,217 @@ export function calculateBodyMetricsAndTargets(params: {
   };
 }
 
-export type FlameTierKey = "ember" | "orange" | "blue" | "purple" | "gold";
+export type FlameTierKey =
+  | "ember"
+  | "yellow"
+  | "orange"
+  | "red"
+  | "blue"
+  | "green";
 
 export interface FlameTierInfo {
   key: FlameTierKey;
   title: string;
+  flameLabel: string;
   subtitle: string;
+  monthBadge: string | null;
   nextMilestoneDays: number;
   primaryHex: string;
   secondaryHex: string;
+  coreHex: string;
+  glowRgba: string;
   pillBgClass: string;
   pillTextClass: string;
   ringClass: string;
+  flameScale: number;
+  particleCount: number;
 }
 
 /**
- * Evolusi Warna & Aura Api berdasarkan durasi konsistensi harian:
- * - 0 hari: Belum menyala
- * - 1–6 hari: Api Oranye Hangat (Pemula Konsisten)
- * - 7–29 hari: Api Biru Neon (Ritme Terbentuk)
- * - 30–89 hari: Api Ungu Plasma (Disiplin Bulanan)
- * - 90+ hari: Api Emas Hologram (Elite TAKAR)
+ * Sistem Evolusi Warna "Panas Api" TAKAR (10, 30, 60, Bulanan, hingga 365+ Hari):
+ * - 0 hari: Belum menyala (Ember)
+ * - 1 – 9 hari: Api Kuning (#FACC15 / #FEF08A) — nyala hangat & stabil
+ * - 10 – 29 hari: Api Oren (#F97316 / #FB923C) — nyala lebih besar & percikan aktif
+ * - 30 – 59 hari: Api Merah (#EF4444 / #DC2626) — api merah membara + heat glow (Bulan ke-1)
+ * - 60 – 364 hari: Api Biru (#3B82F6 / #38BDF8) — api biru plasma + lencana Bulan ke-2..11
+ * - 365+ hari: Api Hijau (#10B981 / #34D399) — api hijau legendaris Ultimate TAKAR
  */
 export function getFlameEvolutionTier(streakDays: number): FlameTierInfo {
   if (streakDays <= 0) {
     return {
       key: "ember",
-      title: "Mulai Konsistensi",
-      subtitle: "Catat makan pertamamu hari ini untuk menyalakan api streak!",
-      nextMilestoneDays: 7,
+      title: "Mulai Streak",
+      flameLabel: "Bara Awal",
+      subtitle: "Catat makanan pertamamu hari ini untuk menyalakan Api Kuning!",
+      monthBadge: null,
+      nextMilestoneDays: 10,
       primaryHex: "#94A3B8",
       secondaryHex: "#CBD5E1",
+      coreHex: "#F1F5F9",
+      glowRgba: "rgba(148, 163, 184, 0.22)",
       pillBgClass: "bg-subtle",
       pillTextClass: "text-ink-secondary",
       ringClass: "ring-slate-200",
+      flameScale: 0.92,
+      particleCount: 0,
     };
   }
 
-  if (streakDays <= 6) {
+  if (streakDays <= 9) {
+    const progressBoost = (streakDays - 1) * 0.012;
     return {
-      key: "orange",
-      title: "Pemula Konsisten",
-      subtitle: "Api Oranye Hangat • Pertahankan hingga 7 hari untuk Api Biru!",
-      nextMilestoneDays: 7,
-      primaryHex: "#F97316",
-      secondaryHex: "#FBBF24",
-      pillBgClass: "bg-orange-50",
-      pillTextClass: "text-orange-600",
-      ringClass: "ring-orange-300/60",
+      key: "yellow",
+      title: "Tahap Awal",
+      flameLabel: "Api Kuning Hangat",
+      subtitle: `${10 - streakDays} hari lagi menuju Milestone 10 Hari (Api Oren)!`,
+      monthBadge: null,
+      nextMilestoneDays: 10,
+      primaryHex: "#FACC15",
+      secondaryHex: "#EAB308",
+      coreHex: "#FEF08A",
+      glowRgba: "rgba(250, 204, 21, 0.45)",
+      pillBgClass: "bg-yellow-50",
+      pillTextClass: "text-amber-700",
+      ringClass: "ring-yellow-400/65",
+      flameScale: 1.0 + progressBoost,
+      particleCount: 6 + Math.floor(streakDays / 2),
     };
   }
 
   if (streakDays <= 29) {
+    const progressBoost = (streakDays - 10) * 0.005;
+    return {
+      key: "orange",
+      title: "Milestone 10+ Hari",
+      flameLabel: "Api Oren Aktif",
+      subtitle: `${30 - streakDays} hari lagi menuju Milestone 1 Bulan (Api Merah)!`,
+      monthBadge: null,
+      nextMilestoneDays: 30,
+      primaryHex: "#F97316",
+      secondaryHex: "#EA580C",
+      coreHex: "#FED7AA",
+      glowRgba: "rgba(249, 115, 22, 0.52)",
+      pillBgClass: "bg-orange-50",
+      pillTextClass: "text-orange-600",
+      ringClass: "ring-orange-400/70",
+      flameScale: 1.09 + progressBoost,
+      particleCount: 12 + Math.floor((streakDays - 10) / 4),
+    };
+  }
+
+  if (streakDays <= 59) {
+    const progressBoost = (streakDays - 30) * 0.003;
+    return {
+      key: "red",
+      title: "Milestone 1 Bulan",
+      flameLabel: "Api Merah Membara",
+      subtitle: `${60 - streakDays} hari lagi menuju Milestone 2 Bulan (Api Biru Plasma)!`,
+      monthBadge: "Bulan ke-1",
+      nextMilestoneDays: 60,
+      primaryHex: "#EF4444",
+      secondaryHex: "#DC2626",
+      coreHex: "#FECACA",
+      glowRgba: "rgba(239, 68, 68, 0.58)",
+      pillBgClass: "bg-red-50",
+      pillTextClass: "text-red-600",
+      ringClass: "ring-red-400/70",
+      flameScale: 1.18 + progressBoost,
+      particleCount: 18,
+    };
+  }
+
+  if (streakDays <= 364) {
+    const monthNum = Math.floor(streakDays / 30);
+    const nextMonthDays = Math.min(365, (monthNum + 1) * 30);
+    const extraParticles = Math.min(10, (monthNum - 2) * 2);
     return {
       key: "blue",
-      title: "Ritme Terbentuk",
-      subtitle: "Api Biru Neon • Menuju 30 hari untuk Api Ungu Plasma!",
-      nextMilestoneDays: 30,
-      primaryHex: "#06B6D4",
-      secondaryHex: "#3B82F6",
-      pillBgClass: "bg-cyan-50",
-      pillTextClass: "text-cyan-700",
-      ringClass: "ring-cyan-300/70",
+      title: `Disiplin Bulan ke-${monthNum}`,
+      flameLabel: "Api Biru Plasma",
+      subtitle:
+        nextMonthDays === 365
+          ? `${365 - streakDays} hari lagi menuju 1 Tahun (Api Hijau Ultimate)!`
+          : `${nextMonthDays - streakDays} hari lagi menuju Lencana Bulan ke-${monthNum + 1}!`,
+      monthBadge: `Bulan ke-${monthNum}`,
+      nextMilestoneDays: nextMonthDays,
+      primaryHex: "#3B82F6",
+      secondaryHex: "#0284C7",
+      coreHex: "#BAE6FD",
+      glowRgba: "rgba(56, 189, 248, 0.62)",
+      pillBgClass: "bg-sky-50",
+      pillTextClass: "text-blue-600",
+      ringClass: "ring-sky-400/75",
+      flameScale: Math.min(1.3, 1.24 + (monthNum - 2) * 0.01),
+      particleCount: 22 + extraParticles,
     };
   }
 
-  if (streakDays <= 89) {
-    const next30 = (Math.floor(streakDays / 30) + 1) * 30;
-    return {
-      key: "purple",
-      title: "Disiplin Bulanan",
-      subtitle: "Api Ungu Plasma • Menuju 90 hari untuk Api Emas Hologram!",
-      nextMilestoneDays: next30,
-      primaryHex: "#8B5CF6",
-      secondaryHex: "#E879F9",
-      pillBgClass: "bg-violet-50",
-      pillTextClass: "text-violet-700",
-      ringClass: "ring-violet-300/70",
-    };
-  }
-
-  const nextMilestone = (Math.floor(streakDays / 30) + 1) * 30;
+  const years = Math.floor(streakDays / 365);
   return {
-    key: "gold",
-    title: "Elite TAKAR",
-    subtitle: "Api Emas Hologram • Disiplin tingkat tertinggi!",
-    nextMilestoneDays: nextMilestone,
-    primaryHex: "#F59E0B",
-    secondaryHex: "#34D399",
-    pillBgClass: "bg-amber-50",
-    pillTextClass: "text-amber-700",
-    ringClass: "ring-amber-400/75",
+    key: "green",
+    title: "Ultimate TAKAR",
+    flameLabel: "Api Hijau Legendaris",
+    subtitle: `Legenda Konsistensi ${years} Tahun+ • Tingkat Panas Tertinggi TAKAR!`,
+    monthBadge: `${years} Tahun+ Elite`,
+    nextMilestoneDays: (Math.floor(streakDays / 30) + 1) * 30,
+    primaryHex: "#10B981",
+    secondaryHex: "#047857",
+    coreHex: "#A7F3D0",
+    glowRgba: "rgba(16, 185, 129, 0.68)",
+    pillBgClass: "bg-emerald-50",
+    pillTextClass: "text-emerald-700",
+    ringClass: "ring-emerald-400/80",
+    flameScale: 1.34,
+    particleCount: 32,
   };
+}
+
+/**
+ * Mendeteksi apakah hari streak baru tepat menyentuh milestone spesial kenaikan level api.
+ */
+export function checkSpecialStreakMilestone(streakDays: number): {
+  isMilestone: boolean;
+  headline: string | null;
+} {
+  if (streakDays === 10) {
+    return {
+      isMilestone: true,
+      headline: "API NAIK LEVEL! 10 Hari — Api Oren Aktif",
+    };
+  }
+  if (streakDays === 30) {
+    return {
+      isMilestone: true,
+      headline: "API NAIK LEVEL! 30 Hari — Api Merah Membara",
+    };
+  }
+  if (streakDays === 60) {
+    return {
+      isMilestone: true,
+      headline: "API NAIK LEVEL! 60 Hari — Api Biru Plasma",
+    };
+  }
+  if (streakDays === 365) {
+    return {
+      isMilestone: true,
+      headline: "ULTIMATE LEVEL! 365 Hari — Api Hijau Legendaris",
+    };
+  }
+  if (streakDays > 60 && streakDays < 365 && streakDays % 30 === 0) {
+    const m = Math.floor(streakDays / 30);
+    return {
+      isMilestone: true,
+      headline: `MILESTONE BULAN KE-${m}! ${streakDays} Hari Api Biru Plasma`,
+    };
+  }
+  if (streakDays > 365 && streakDays % 30 === 0) {
+    const m = Math.floor(streakDays / 30);
+    return {
+      isMilestone: true,
+      headline: `ELITE BULAN KE-${m}! ${streakDays} Hari Api Hijau Legendaris`,
+    };
+  }
+  return { isMilestone: false, headline: null };
 }
 
 export function formatLocalDateYmd(date: Date): string {
@@ -232,10 +350,6 @@ export function diffCalendarDays(fromYmd: string, toYmd: string): number {
   return Math.round((tTo - tFrom) / 86_400_000);
 }
 
-/**
- * Menghitung pembaruan streak harian saat pengguna mencatat makan hari ini.
- * Syarat bertambah +1: ada minimal 1 log hari ini DAN kalori tidak melampaui >135% target.
- */
 export function evaluateStreakProgress(params: {
   currentStreak: number;
   longestStreak: number;
@@ -251,6 +365,7 @@ export function evaluateStreakProgress(params: {
   last_logged_date: string | null;
   streak_history: string[];
   didChange: boolean;
+  didIncrementToday: boolean;
 } {
   const {
     currentStreak,
@@ -267,7 +382,6 @@ export function evaluateStreakProgress(params: {
     Array.isArray(streakHistory) ? streakHistory : []
   );
 
-  // Jika belum catat makan hari ini, periksa apakah streak kemarin sudah hangus (>1 hari terlewat)
   if (mealsCountToday <= 0) {
     if (lastLoggedDate) {
       const gap = diffCalendarDays(lastLoggedDate, todayYmd);
@@ -278,6 +392,7 @@ export function evaluateStreakProgress(params: {
           last_logged_date: lastLoggedDate,
           streak_history: Array.from(historySet).slice(-40),
           didChange: true,
+          didIncrementToday: false,
         };
       }
     }
@@ -287,10 +402,10 @@ export function evaluateStreakProgress(params: {
       last_logged_date: lastLoggedDate,
       streak_history: Array.from(historySet).slice(-40),
       didChange: false,
+      didIncrementToday: false,
     };
   }
 
-  // Batas ekstrem kalori > 135% target tidak menambah streak baru
   const withinExtremeLimit = totalKcalToday <= Math.max(1, targetKcal) * 1.35;
   if (!withinExtremeLimit) {
     return {
@@ -299,6 +414,7 @@ export function evaluateStreakProgress(params: {
       last_logged_date: lastLoggedDate,
       streak_history: Array.from(historySet).slice(-40),
       didChange: false,
+      didIncrementToday: false,
     };
   }
 
@@ -311,6 +427,7 @@ export function evaluateStreakProgress(params: {
         last_logged_date: todayYmd,
         streak_history: Array.from(historySet).sort().slice(-40),
         didChange: true,
+        didIncrementToday: false,
       };
     }
     return {
@@ -319,6 +436,7 @@ export function evaluateStreakProgress(params: {
       last_logged_date: lastLoggedDate,
       streak_history: Array.from(historySet).sort().slice(-40),
       didChange: false,
+      didIncrementToday: false,
     };
   }
 
@@ -343,6 +461,7 @@ export function evaluateStreakProgress(params: {
     last_logged_date: todayYmd,
     streak_history: Array.from(historySet).sort().slice(-40),
     didChange: true,
+    didIncrementToday: true,
   };
 }
 

@@ -156,7 +156,7 @@ function ReviewMealContent() {
   return (
     <div className="flex min-h-dvh flex-col bg-canvas pb-32">
       {/* Top Header */}
-      <header className="flex items-center justify-between px-5 pb-2 pt-5">
+      <header className="flex items-center justify-between px-5 pb-2 pt-[max(1.25rem,calc(env(safe-area-inset-top)+0.5rem))]">
         <div className="flex items-center gap-3">
           <Link
             href={isManualMode ? "/" : "/scan"}

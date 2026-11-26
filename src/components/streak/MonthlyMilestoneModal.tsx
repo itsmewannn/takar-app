@@ -5,6 +5,7 @@ import { Award, CheckCircle2, Sparkles, X } from "lucide-react";
 import { TakaMascot } from "@/components/TakaMascot";
 import { EvolutionFlameIcon } from "./StreakBadgeDrawer";
 import { Button } from "@/components/ui/Button";
+import { getFlameEvolutionTier } from "@/lib/body-profile-engine";
 import type { GoalProgramType } from "@/types/database.types";
 
 export interface MonthlyMilestoneModalProps {
@@ -83,7 +84,7 @@ export function MonthlyMilestoneModal({
 
   const effectiveDays = Math.max(30, streakDays);
   const copy = buildMilestoneCopy(goalProgram, effectiveDays, userName);
-  const flameTier = effectiveDays >= 90 ? "gold" : "purple";
+  const flameTier = getFlameEvolutionTier(effectiveDays).key;
 
   return (
     <div

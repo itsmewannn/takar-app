@@ -100,7 +100,7 @@ export default function ProfilePage() {
 
   return (
     <div className="flex min-h-dvh flex-col bg-canvas pb-12">
-      <header className="flex items-center gap-3 px-5 pb-3 pt-5">
+      <header className="flex items-center gap-3 px-5 pb-3 pt-[max(1.25rem,calc(env(safe-area-inset-top)+0.5rem))]">
         <Link
           href="/"
           aria-label="Kembali ke beranda"

@@ -263,11 +263,12 @@ describe("nutrition-engine — deterministic TKPI + cooking modifiers", () => {
     expect(bulkMale.targetKcal).toBe(bulkMale.tdeeKcal + 300);
     expect(cutMale.targetProteinG).toBeGreaterThanOrEqual(140);
 
-    // 4-tier Flame Evolution
-    expect(getFlameEvolutionTier(3).key).toBe("orange");
-    expect(getFlameEvolutionTier(14).key).toBe("blue");
-    expect(getFlameEvolutionTier(30).key).toBe("purple");
-    expect(getFlameEvolutionTier(95).key).toBe("gold");
+    // 5-tier Heat Flame Evolution (Kuning, Oren, Merah, Biru, Hijau)
+    expect(getFlameEvolutionTier(5).key).toBe("yellow");
+    expect(getFlameEvolutionTier(14).key).toBe("orange");
+    expect(getFlameEvolutionTier(30).key).toBe("red");
+    expect(getFlameEvolutionTier(95).key).toBe("blue");
+    expect(getFlameEvolutionTier(365).key).toBe("green");
 
     // Streak increments +1 on consecutive day within <= 135% calorie cap
     const day2 = evaluateStreakProgress({
